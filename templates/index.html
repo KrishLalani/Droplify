@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Droplify - Never Miss a Price Drop</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <style>
+        .gradient-bg{background:linear-gradient(135deg,#b6b09f 0%,#eae4d5 100%)}
+        .hover-lift{transition:transform .3s ease,box-shadow .3s ease}
+        .hover-lift:hover{transform:translateY(-5px);box-shadow:0 10px 20px rgba(0,0,0,.08)}
+        .fade-in{animation:fadeIn .5s ease-in-out}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        .modal-overlay{animation:fadeIn .3s ease}
+        .modal-content{animation:scaleUp .3s ease}
+        @keyframes scaleUp{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+        .comparison-table{max-height:400px;overflow-y:auto}
+        .insight-card{background:linear-gradient(135deg,#f8f9fa 0%,#e9ecef 100%)}
+        /* [NEW] Added keyframes for loading spinner for hot deals */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-[#F2F2F2]">
+    <div id="messageContainer" class="fixed top-20 right-4 z-50 w-80"></div>
+    <div id="loadingModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[100] flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg flex items-center space-x-4 shadow-xl">
+            <i class="fas fa-spinner fa-spin text-2xl text-[#B6B09F]"></i>
+            <span id="loadingText" class="text-slate-700">Processing...</span>
+        </div>
+    </div>
+    <div id="demoModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-[90] flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-8 relative modal-content">
+            <button onclick="toggleModal('demoModal', false)" class="absolute top-4 right-4 text-slate-500 hover:text-slate-800 transition-colors"><i class="fas fa-times text-2xl"></i></button>
+            <h2 class="text-3xl font-bold text-center mb-8 text-[#000000]">How It Works in 4 Simple Steps</h2>
+            <div class="grid md:grid-cols-4 gap-6 text-center">
+                <div class="flex flex-col items-center"><div class="w-20 h-20 bg-[#EAE4D5] text-[#B6B09F] rounded-full flex items-center justify-center text-3xl mb-4"><i class="fas fa-link"></i></div><h3 class="font-bold text-lg mb-2">1. Copy URL</h3><p class="text-slate-600 text-sm">Find a product you love on any major store and copy its URL.</p></div>
+                <div class="flex flex-col items-center"><div class="w-20 h-20 bg-[#EAE4D5] text-[#B6B09F] rounded-full flex items-center justify-center text-3xl mb-4"><i class="fas fa-paste"></i></div><h3 class="font-bold text-lg mb-2">2. Paste & Set</h3><p class="text-slate-600 text-sm">Paste the URL in our tracker, add your email, and set a price goal.</p></div>
+                <div class="flex flex-col items-center"><div class="w-20 h-20 bg-[#EAE4D5] text-[#B6B09F] rounded-full flex items-center justify-center text-3xl mb-4"><i class="fas fa-bell"></i></div><h3 class="font-bold text-lg mb-2">3. Get Alerted</h3><p class="text-slate-600 text-sm">We'll monitor the price 24/7 and email you the moment it drops.</p></div>
+                <div class="flex flex-col items-center"><div class="w-20 h-20 bg-[#EAE4D5] text-[#B6B09F] rounded-full flex items-center justify-center text-3xl mb-4"><i class="fas fa-rupee-sign"></i></div><h3 class="font-bold text-lg mb-2">4. Save Money</h3><p class="text-slate-600 text-sm">Buy your product at the best price and enjoy your savings!</p></div>
+            </div>
+        </div>
+    </div>
+    <div id="insightsModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-[90] flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl p-8 relative modal-content max-h-[90vh] overflow-y-auto">
+            <button onclick="toggleModal('insightsModal', false)" class="absolute top-4 right-4 text-slate-500 hover:text-slate-800 transition-colors"><i class="fas fa-times text-2xl"></i></button>
+            <h2 class="text-3xl font-bold text-center mb-8 text-[#000000]">AI Product Insights</h2>
+            <div id="insightsContent" class="space-y-6"><div class="text-center"><i class="fas fa-spinner fa-spin text-4xl text-[#B6B09F]"></i><p class="mt-4 text-slate-600">Analyzing product data...</p></div></div>
+        </div>
+    </div>
+    <div id="comparisonModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-[90] flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl p-8 relative modal-content max-h-[90vh] overflow-y-auto">
+            <button onclick="toggleModal('comparisonModal', false)" class="absolute top-4 right-4 text-slate-500 hover:text-slate-800 transition-colors"><i class="fas fa-times text-2xl"></i></button>
+            <h2 class="text-3xl font-bold text-center mb-8 text-[#000000]">Product Comparison Tool</h2>
+            <div id="comparisonContainer">
+                <div id="comparisonForm" class="">
+                    <h3 class="text-xl font-semibold mb-4 text-[#000000]">Add Product URLs to Compare</h3>
+                    <div class="space-y-3">
+                        <input type="url" id="compareUrl1" placeholder="Product URL 1 (e.g., from Amazon)" class="w-full px-4 py-3 border border-[#B6B09F] rounded-lg focus:ring-2 focus:ring-[#B6B09F] focus:border-[#B6B09F] transition" />
+                        <input type="url" id="compareUrl2" placeholder="Product URL 2 (e.g., from Flipkart)" class="w-full px-4 py-3 border border-[#B6B09F] rounded-lg focus:ring-2 focus:ring-[#B6B09F] focus:border-[#B6B09F] transition" />
+                        <input type="url" id="compareUrl3" placeholder="Product URL 3 (Optional)" class="w-full px-4 py-3 border border-[#B6B09F] rounded-lg focus:ring-2 focus:ring-[#B6B09F] focus:border-[#B6B09F] transition" />
+                        <button onclick="compareProducts()" class="w-full bg-[#B6B09F] hover:bg-opacity-80 text-white font-semibold py-3 rounded-lg transition-colors"><i class="fas fa-balance-scale mr-2"></i>Compare Products</button>
+                    </div>
+                </div>
+                <div id="comparisonResults" class="hidden">
+                    </div>
+            </div>
+        </div>
+    </div>
+    <div id="forecastModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-[90] flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 relative modal-content">
+            <button onclick="toggleModal('forecastModal', false)" class="absolute top-4 right-4 text-slate-500 hover:text-slate-800 transition-colors"><i class="fas fa-times text-2xl"></i></button>
+            <h2 class="text-3xl font-bold text-center mb-6 text-[#000000]">AI Price Forecast 🔮</h2>
+            <div id="forecastContent" class="space-y-4"><div class="text-center"><i class="fas fa-spinner fa-spin text-4xl text-[#B6B09F]"></i><p class="mt-4 text-slate-600">Calculating future timelines...</p></div></div>
+        </div>
+    </div>
+    
+    <div id="quickActionModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-[90] flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-8 relative modal-content max-h-[90vh] overflow-y-auto">
+            <button onclick="toggleModal('quickActionModal', false)" class="absolute top-4 right-4 text-slate-500 hover:text-slate-800 transition-colors"><i class="fas fa-times text-2xl"></i></button>
+            <h2 id="quickActionModalTitle" class="text-3xl font-bold text-center mb-8 text-[#000000]">Quick Action</h2>
+            <form id="quickActionForm" class="mb-6">
+                <input type="hidden" id="quickActionType" name="action">
+                <div class="space-y-4">
+                    <input type="url" id="quickActionUrl" placeholder="Enter Product URL here..." class="w-full px-4 py-3 border border-[#B6B09F] rounded-lg focus:ring-2 focus:ring-[#B6B09F] focus:border-[#B6B09F] transition" required />
+                    <button type="submit" class="w-full bg-[#B6B09F] hover:bg-opacity-80 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center"><i class="fas fa-paper-plane mr-2"></i>Get Analysis</button>
+                </div>
+            </form>
+            <div id="quickActionResults" class="mt-6 space-y-4">
+            </div>
+        </div>
+    </div>
+
+    <nav class="fixed top-0 w-full z-40 bg-white/95 backdrop-blur-sm border-b border-[#EAE4D5]">
+        <div class="max-w-6xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3"><div class="w-9 h-9 bg-[#B6B09F] rounded-lg flex items-center justify-center"><i class="fas fa-tags text-white text-base"></i></div><span class="text-xl font-bold text-[#000000]">Droplify</span></div>
+                <div class="flex items-center space-x-4">
+                    <span id="liveCount" class="text-sm text-[#000000] hidden md:block">0 Products Tracked</span>
+                    <button onclick="toggleModal('comparisonModal', true)" class="bg-[#000000] hover:bg-opacity-80 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"><i class="fas fa-balance-scale mr-1"></i>Compare</button>
+                    <button class="bg-[#B6B09F] hover:bg-opacity-80 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">Download App</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <section class="gradient-bg text-white pt-24 pb-20">
+        <div class="max-w-6xl mx-auto px-4 py-16">
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <div>
+                    <div class="inline-flex items-center bg-white/20 rounded-full px-3 py-1 mb-6 text-sm"><span class="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>Live Price Tracking</div>
+                    <h1 class="text-4xl lg:text-6xl font-bold mb-6 text-[#000000]">Never Miss a <span class="text-[#F2F2F2]">Price Drop</span> Again</h1>
+                    <p class="text-xl text-[#000000]/90 mb-8">Track product prices from your favorite online stores and get notified instantly when they fall. Save money effortlessly with AI-powered insights.</p>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <button onclick="scrollTo('tracker')" class="bg-white text-[#B6B09F] font-semibold px-6 py-3 rounded-lg hover:bg-slate-100 transition-colors">Start Tracking Now</button>
+                        <button onclick="toggleModal('demoModal', true)" class="border-2 border-white/50 text-white px-6 py-3 rounded-lg hover:bg-white/20 transition-colors">Watch Demo</button>
+                    </div>
+                </div>
+                <div class="flex justify-center">
+                    <div id="greatestDealCard" class="bg-white/10 rounded-2xl p-6 hover-lift w-full max-w-sm">
+                        <div class="bg-white rounded-xl p-6 text-center shadow-lg">
+                            <div class="w-12 h-12 bg-[#EAE4D5] text-[#B6B09F] rounded-xl mx-auto mb-4 flex items-center justify-center"><i id="dealIcon" class="fas fa-bell text-2xl"></i></div>
+                            <h3 id="dealTitle" class="font-bold text-[#000000] text-lg mb-2">Price Alert!</h3>
+                            <p id="dealDescription" class="text-[#000000] text-sm mb-4">No deals found yet. Track a product!</p>
+                            <div id="dealSavings" class="bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold">Track to Save!</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="quick-tools" class="py-20 bg-white">
+        <div class="max-w-4xl mx-auto px-4">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-[#000000] mb-3">Quick Analysis Tools</h2>
+                <p class="text-[#000000] max-w-xl mx-auto">Get instant AI-powered insights for any product URL without tracking it first.</p>
+            </div>
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div onclick="openQuickActionModal('recommendation', 'Get AI Recommendation')" class="bg-gray-50 p-6 rounded-xl text-center hover-lift shadow-sm border border-[#EAE4D5] cursor-pointer">
+                    <div class="w-16 h-16 bg-[#EAE4D5] text-[#B6B09F] rounded-full mx-auto mb-4 flex items-center justify-center text-3xl"><i class="fas fa-thumbs-up"></i></div>
+                    <h3 class="font-bold text-lg mb-2 text-[#000000]">AI Recommendation</h3>
+                    <p class="text-slate-600 text-sm">Get a quick "Buy Now" or "Wait" verdict from our AI.</p>
+                </div>
+                <div onclick="openQuickActionModal('insights', 'Get Full AI Insights')" class="bg-gray-50 p-6 rounded-xl text-center hover-lift shadow-sm border border-[#EAE4D5] cursor-pointer">
+                    <div class="w-16 h-16 bg-[#EAE4D5] text-[#B6B09F] rounded-full mx-auto mb-4 flex items-center justify-center text-3xl"><i class="fas fa-brain"></i></div>
+                    <h3 class="font-bold text-lg mb-2 text-[#000000]">Full AI Insights</h3>
+                    <p class="text-slate-600 text-sm">A detailed analysis of the product, price, and buying tips.</p>
+                </div>
+                <div onclick="openQuickActionModal('prediction', 'Future Price Prediction')" class="bg-gray-50 p-6 rounded-xl text-center hover-lift shadow-sm border border-[#EAE4D5] cursor-pointer">
+                    <div class="w-16 h-16 bg-[#EAE4D5] text-[#B6B09F] rounded-full mx-auto mb-4 flex items-center justify-center text-3xl"><i class="fas fa-crystal-ball"></i></div>
+                    <h3 class="font-bold text-lg mb-2 text-[#000000]">Future Prediction</h3>
+                    <p class="text-slate-600 text-sm">See the AI's forecast for future price changes (requires history).</p>
+                </div>
+                <div onclick="openQuickActionModal('history', 'View Price History')" class="bg-gray-50 p-6 rounded-xl text-center hover-lift shadow-sm border border-[#EAE4D5] cursor-pointer">
+                    <div class="w-16 h-16 bg-[#EAE4D5] text-[#B6B09F] rounded-full mx-auto mb-4 flex items-center justify-center text-3xl"><i class="fas fa-chart-line"></i></div>
+                    <h3 class="font-bold text-lg mb-2 text-[#000000]">Price History</h3>
+                    <p class="text-slate-600 text-sm">View the current price (tracking required for full history).</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="hot-deals-section" class="py-20 bg-[#F2F2F2]">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-[#000000] mb-3">🔥 Today's Hot Deals</h2>
+                <p class="text-[#000000] max-w-xl mx-auto">Discover the best deals from across the web, updated daily.</p>
+            </div>
+            
+            <div class="flex justify-center flex-wrap gap-2 mb-8" id="hotDealsCategoryFilter">
+                <button class="category-btn active" onclick="filterDealsByCategory('all', event)">All</button>
+                <button class="category-btn" onclick="filterDealsByCategory('electronics', event)">Electronics</button>
+                <button class="category-btn" onclick="filterDealsByCategory('home', event)">Home</button>
+                <button class="category-btn" onclick="filterDealsByCategory('fashion', event)">Fashion</button>
+                <button class="category-btn" onclick="filterDealsByCategory('sports', event)">Sports</button>
+            </div>
+
+            <div id="hotDealsLoading" class="hidden text-center py-10">
+                <div class="inline-block w-10 h-10 border-4 border-t-[#B6B09F] border-gray-200 rounded-full" style="animation: spin 1s linear infinite;"></div>
+                <p class="mt-4 text-slate-600">Fetching amazing deals for you...</p>
+            </div>
+
+            <div id="dealsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                </div>
+        </div>
+    </section>
+    
+    <section id="tracker" class="py-20 bg-white">
+        <div class="max-w-4xl mx-auto px-4">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-[#000000] mb-3">Track Your First Product</h2>
+                <p class="text-[#000000] max-w-xl mx-auto">Simply paste the product URL from Amazon, Flipkart, Myntra, etc., provide your email, and set your alert.</p>
+            </div>
+            <div class="bg-white rounded-2xl shadow-xl border border-[#EAE4D5] p-8">
+                <form id="trackingForm" class="space-y-6">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div><label class="block text-sm font-semibold text-[#000000] mb-2">Product URL</label><input type="url" id="productUrl" required class="w-full px-4 py-3 border border-[#B6B09F] rounded-lg focus:ring-2 focus:ring-[#B6B09F] focus:border-[#B6B09F] transition" placeholder="https://www.amazon.in/product-link" /></div>
+                        <div><label class="block text-sm font-semibold text-[#000000] mb-2">Email Address</label><input type="email" id="userEmail" required class="w-full px-4 py-3 border border-[#B6B09F] rounded-lg focus:ring-2 focus:ring-[#B6B09F] focus:border-[#B6B09F] transition" placeholder="your.email@example.com" /></div>
+                    </div>
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <div><label class="block text-sm font-semibold text-[#000000] mb-2">Alert Type</label><select id="alertType" class="w-full px-4 py-3 border border-[#B6B09F] rounded-lg focus:ring-2 focus:ring-[#B6B09F] focus:border-[#B6B09F] bg-white transition"><option value="percentage">Percentage Drop (%)</option><option value="fixed">Fixed Price (₹)</option></select></div>
+                        <div><label class="block text-sm font-semibold text-[#000000] mb-2">Target Value</label><input type="number" id="targetValue" required min="1" step="1" class="w-full px-4 py-3 border border-[#B6B09F] rounded-lg focus:ring-2 focus:ring-[#B6B09F] focus:border-[#B6B09F] transition" placeholder="10" /></div>
+                        <div class="flex items-end"><button type="submit" id="submitBtn" class="w-full bg-[#B6B09F] hover:bg-opacity-80 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center"><i class="fas fa-plus mr-2"></i><span>Start Tracking</span></button></div>
+                    </div>
+                </form>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                    <button onclick="setQuick(10)" class="bg-[#F2F2F2] hover:bg-[#EAE4D5] text-[#000000] p-3 rounded-lg text-sm font-medium transition-colors">10% Drop</button>
+                    <button onclick="setQuick(20)" class="bg-[#F2F2F2] hover:bg-[#EAE4D5] text-[#000000] p-3 rounded-lg text-sm font-medium transition-colors">20% Drop</button>
+                    <button onclick="setQuick(30)" class="bg-[#F2F2F2] hover:bg-[#EAE4D5] text-[#000000] p-3 rounded-lg text-sm font-medium transition-colors">30% Drop</button>
+                    <button onclick="setQuick(50)" class="bg-[#F2F2F2] hover:bg-[#EAE4D5] text-[#000000] p-3 rounded-lg text-sm font-medium transition-colors">50% Drop</button>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="py-20 bg-[#F2F2F2]">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="grid md:grid-cols-3 gap-6 mb-12">
+                <div class="bg-white rounded-xl p-6 text-center hover-lift shadow-sm border border-[#EAE4D5]"><div class="w-12 h-12 bg-[#EAE4D5] text-[#B6B09F] rounded-xl mx-auto mb-3 flex items-center justify-center"><i class="fas fa-shopping-cart"></i></div><h3 class="text-3xl font-bold text-[#000000]" id="totalProducts">0</h3><p class="text-[#000000]">Products Tracked</p></div>
+                <div class="bg-white rounded-xl p-6 text-center hover-lift shadow-sm border border-[#EAE4D5]"><div class="w-12 h-12 bg-[#EAE4D5] text-[#B6B09F] rounded-xl mx-auto mb-3 flex items-center justify-center"><i class="fas fa-bell"></i></div><h3 class="text-3xl font-bold text-[#000000]" id="activeAlerts">0</h3><p class="text-[#000000]">Alerts Sent</p></div>
+                <div class="bg-white rounded-xl p-6 text-center hover-lift shadow-sm border border-[#EAE4D5]"><div class="w-12 h-12 bg-[#EAE4D5] text-[#B6B09F] rounded-xl mx-auto mb-3 flex items-center justify-center"><i class="fas fa-rupee-sign"></i></div><h3 class="text-3xl font-bold text-[#000000]" id="totalSaved">₹0</h3><p class="text-[#000000]">Total Money Saved</p></div>
+            </div>
+            <div class="bg-white rounded-xl shadow-xl p-6 border border-[#EAE4D5]">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-[#000000]">Your Tracked Products</h3>
+                    <div class="flex gap-3">
+                        <button onclick="checkAllPrices()" id="checkBtn" class="bg-[#B6B09F] hover:bg-opacity-80 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"><i class="fas fa-sync-alt mr-1"></i>Check Prices</button>
+                        <button onclick="exportData()" class="bg-[#000000] hover:bg-opacity-80 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"><i class="fas fa-download mr-1"></i>Export</button>
+                    </div>
+                </div>
+                <div id="productsList" class="space-y-4">
+                    <div id="noProductsPlaceholder" class="text-center py-12 text-[#000000]"><div class="w-16 h-16 bg-[#F2F2F2] rounded-full mx-auto mb-4 flex items-center justify-center"><i class="fas fa-shopping-cart text-2xl text-[#B6B09F]"></i></div><h3 class="text-lg font-semibold text-[#000000] mb-2">No products tracked yet</h3><p class="text-[#000000]">Add your first product above to start saving!</p></div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <footer class="bg-[#000000] text-white py-10">
+        <div class="max-w-6xl mx-auto px-4 text-center">
+            <div class="flex items-center justify-center space-x-3 mb-4"><div class="w-9 h-9 bg-[#B6B09F] rounded-lg flex items-center justify-center"><i class="fas fa-tags text-white text-base"></i></div><span class="text-xl font-bold">Droplify</span></div>
+            <p class="text-slate-400">Never miss a price drop again. Save money effortlessly with AI-powered insights.</p>
+        </div>
+    </footer>
+
+    <script>
+        const API_BASE_URL = "";
+        let chartInstances = {};
+        let tracked_products = [];
+        
+        // [NEW] Global variable for hot deals
+        let allHotDeals = [];
+
+        const showMessage = (message, type = "success") => {
+            const container = document.getElementById("messageContainer");
+            const bgColor = type === "success" ? "bg-[#B6B09F] text-white" : "bg-red-500 text-white";
+            const div = document.createElement("div");
+            div.className = `mb-4 p-4 rounded-lg shadow-lg fade-in ${bgColor}`;
+            div.innerHTML = `<div class="flex justify-between items-center"><span class="font-medium">${message}</span><button onclick="this.parentElement.parentElement.remove()" class="ml-4">&times;</button></div>`;
+            container.appendChild(div);
+            setTimeout(() => div.remove(), 5000);
+        };
+        const showLoading = (show = true, text = "Processing...") => {
+            document.getElementById("loadingText").textContent = text;
+            document.getElementById("loadingModal").classList.toggle("hidden", !show);
+        };
+        const setQuick = (percentage) => {
+            document.getElementById("alertType").value = "percentage";
+            document.getElementById("targetValue").value = percentage;
+        };
+        const scrollTo = (elementId) => document.getElementById(elementId).scrollIntoView({ behavior: "smooth", block: "start" });
+        
+        const resetComparisonView = () => {
+            const resultsContainer = document.getElementById("comparisonResults");
+            const formContainer = document.getElementById("comparisonForm");
+            
+            resultsContainer.innerHTML = '';
+            resultsContainer.classList.add('hidden');
+            formContainer.classList.remove('hidden');
+
+            ['compareUrl1', 'compareUrl2', 'compareUrl3'].forEach(id => {
+                if(document.getElementById(id)) {
+                    document.getElementById(id).value = '';
+                }
+            });
+        };
+
+        const toggleModal = (modalId, show) => {
+            document.getElementById(modalId).classList.toggle("hidden", !show);
+            if (modalId === 'comparisonModal' && !show) {
+                resetComparisonView();
+            }
+        };
+
+        const fetchApi = async (endpoint, options = {}) => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api${endpoint}`, options);
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || `HTTP error! Status: ${response.status}`);
+                return data;
+            } catch (error) {
+                console.error("API Error:", error);
+                throw error;
+            }
+        };
+        
+        // --- [NEW] Hot Deals JS Functions ---
+        
+        const loadHotDeals = async () => {
+            const loading = document.getElementById('hotDealsLoading');
+            const container = document.getElementById('dealsContainer');
+            
+            loading.classList.remove('hidden');
+            container.innerHTML = '';
+
+            try {
+                const response = await fetch('/api/hot-deals'); // Using direct fetch as it's simple
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    allHotDeals = data.data;
+                    displayHotDeals(allHotDeals);
+                } else {
+                    throw new Error(data.message || 'Failed to load deals');
+                }
+            } catch (err) {
+                console.error('Error loading hot deals:', err);
+                container.innerHTML = `<p class="text-center text-red-600 col-span-full">Failed to load hot deals. Please try again later.</p>`;
+            } finally {
+                loading.classList.add('hidden');
+            }
+        };
+        
+        const displayHotDeals = (deals) => {
+            const container = document.getElementById('dealsContainer');
+            container.innerHTML = '';
+
+            if (!deals || deals.length === 0) {
+                container.innerHTML = `<p class="text-center text-slate-600 col-span-full">No deals found for this category.</p>`;
+                return;
+            }
+
+            deals.forEach(deal => {
+                const dealCard = createDealCard(deal);
+                container.appendChild(dealCard);
+            });
+        };
+
+        const createDealCard = (deal) => {
+            const card = document.createElement('div');
+            card.className = 'bg-white rounded-xl p-4 shadow-md hover-lift flex flex-col relative fade-in';
+            
+            const savings = deal.original_price - deal.sale_price;
+            const timeLeft = deal.deal_ends ? getTimeLeft(deal.deal_ends) : 'Limited Time';
+            const stars = generateStars(deal.rating);
+
+            card.innerHTML = `
+                <div class="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full z-10">${deal.discount_percentage}% OFF</div>
+                <img src="${deal.image_url}" alt="${deal.title}" class="w-full h-48 object-contain mb-4 rounded-lg bg-gray-100 p-2">
+                
+                <h3 class="font-semibold text-gray-800 text-base leading-snug mb-2 h-10 overflow-hidden">${deal.title}</h3>
+                
+                <div class="flex items-center gap-1 text-sm text-gray-600 mb-3">
+                    <span class="text-yellow-500">${stars}</span>
+                    <span class="text-xs">(${deal.reviews_count?.toLocaleString('en-IN') || '0'})</span>
+                </div>
+                
+                <div class="flex items-baseline gap-2 mt-auto mb-3">
+                    <span class="text-2xl font-bold text-red-600">₹${deal.sale_price.toLocaleString('en-IN', {maximumFractionDigits: 0})}</span>
+                    <span class="text-sm text-gray-500 line-through">₹${deal.original_price.toLocaleString('en-IN', {maximumFractionDigits: 0})}</span>
+                </div>
+
+                <div class="text-center text-sm bg-red-100 text-red-700 rounded-md py-1 px-2 mb-4">
+                    ⏰ ${timeLeft}
+                </div>
+
+                <a href="${deal.product_url}" target="_blank" class="w-full text-center bg-[#000000] hover:bg-opacity-80 text-white font-semibold py-2 rounded-lg transition-colors mt-auto">
+                    View Deal
+                </a>
+            `;
+
+            return card;
+        };
+        
+        const generateStars = (rating) => {
+            let stars = '';
+            const fullStars = Math.floor(rating);
+            const halfStar = rating % 1 >= 0.5;
+            
+            for (let i = 0; i < fullStars; i++) stars += '★';
+            if (halfStar) stars += '½';
+            const emptyStars = 5 - Math.ceil(rating);
+            for (let i = 0; i < emptyStars; i++) stars += '☆';
+            
+            return stars;
+        };
+        
+        const getTimeLeft = (endTime) => {
+            const diff = new Date(endTime) - new Date();
+            if (diff <= 0) return 'Deal Expired';
+            
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            
+            if (days > 0) return `${days}d ${hours}h left`;
+            if (hours > 0) return `${hours}h ${minutes}m left`;
+            return `${minutes}m left`;
+        };
+
+        const filterDealsByCategory = (category, event) => {
+            // Update active button styling
+            document.querySelectorAll('#hotDealsCategoryFilter .category-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const loading = document.getElementById('hotDealsLoading');
+            const container = document.getElementById('dealsContainer');
+            loading.classList.remove('hidden');
+            container.innerHTML = '';
+            
+            fetch(`/api/deals/category/${category}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        displayHotDeals(data.data);
+                    } else {
+                        throw new Error(data.message);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error filtering deals:', err);
+                    container.innerHTML = `<p class="text-center text-red-600 col-span-full">Could not filter deals.</p>`;
+                })
+                .finally(() => {
+                    loading.classList.add('hidden');
+                });
+        };
+        
+        // --- End of Hot Deals JS ---
+        
+        async function showForecast(productId) {
+            toggleModal('forecastModal', true);
+            const forecastContent = document.getElementById("forecastContent");
+            forecastContent.innerHTML = `<div class="text-center"><i class="fas fa-spinner fa-spin text-4xl text-[#B6B09F]"></i><p class="mt-4 text-slate-600">Consulting AI Oracle...</p></div>`;
+            
+            try {
+                const data = await fetchApi(`/product/${productId}/temporal_forecast`);
+                if (!data.success) throw new Error(data.error);
+                
+                const { forecast, product_title, current_price } = data;
+                
+                const confidenceColorMap = {
+                    'High': 'text-green-600',
+                    'Medium': 'text-yellow-600',
+                    'Low': 'text-red-600'
+                };
+
+                forecastContent.innerHTML = `
+                    <p class="text-center text-slate-700 italic">AI forecast for:</p>
+                    <h3 class="text-xl font-semibold text-center text-[#B6B09F] truncate">${product_title}</h3>
+
+                    <div class="mt-4 p-4 rounded-lg insight-card">
+                         <div class="text-sm text-center font-semibold text-slate-600 mb-2">30-Day Forecast</div>
+                        <p class="text-lg font-bold text-center text-purple-700">“${forecast.forecast_summary}”</p>
+                    </div>
+
+                    <div class="mt-4 text-center">
+                        <span class="font-semibold">Confidence:</span>
+                        <span class="font-bold ${confidenceColorMap[forecast.confidence] || 'text-slate-600'}">${forecast.confidence}</span>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-2 gap-4 text-center">
+                        <div class="bg-slate-100 p-4 rounded-lg">
+                            <div class="text-sm font-medium text-slate-500">Current Price</div>
+                            <div class="text-2xl font-bold text-slate-800">₹${current_price.toLocaleString("en-IN")}</div>
+                        </div>
+                        <div class="bg-purple-100 p-4 rounded-lg border border-purple-300">
+                            <div class="text-sm font-bold text-purple-600">Predicted Range</div>
+                            <div class="text-xl font-bold text-purple-800">₹${forecast.predicted_range.low.toLocaleString("en-IN")} - ₹${forecast.predicted_range.high.toLocaleString("en-IN")}</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 text-sm bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-3 rounded-r-lg">
+                        <strong>Reasoning:</strong> ${forecast.reasoning}
+                    </div>
+                `;
+            } catch (error) {
+                forecastContent.innerHTML = `
+                    <div class="text-center p-4 bg-red-50 border-l-4 border-red-500 rounded-lg">
+                        <i class="fas fa-exclamation-triangle text-3xl text-red-500 mb-3"></i>
+                        <h3 class="text-lg font-semibold text-red-800">Forecast Error</h3>
+                        <p class="text-red-700 mt-1">${error.message}</p>
+                    </div>`;
+            }
+        }
+        
+        const loadApp = async () => {
+            showLoading(true, "Loading your products...");
+            try {
+                const data = await fetchApi("/products");
+                tracked_products = data.products || [];
+                renderProducts(tracked_products);
+                
+                let totalAlerts = 0;
+                let totalSavings = 0;
+                tracked_products.forEach(p => {
+                    totalAlerts += p.alerts_sent || 0;
+                    if (p.original_price > p.current_price) {
+                        totalSavings += p.original_price - p.current_price;
+                    }
+                });
+                
+                const summary = {
+                    total_products: tracked_products.length,
+                    total_alerts_sent: totalAlerts,
+                    total_savings: totalSavings
+                };
+                updateDashboardStats(summary);
+                
+                const dealData = await fetchApi("/greatest_deal").catch(() => ({ deal: null }));
+                updateGreatestDealCard(dealData.deal);
+
+            } catch (err) {
+                showMessage("Failed to load application data: " + err.message, "error");
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        const renderProducts = (products) => {
+            const container = document.getElementById("productsList");
+            const placeholder = document.getElementById("noProductsPlaceholder");
+            container.innerHTML = "";
+            if (!products || products.length === 0) {
+                placeholder.style.display = "block";
+                container.appendChild(placeholder);
+                return;
+            }
+            placeholder.style.display = "none";
+            products.forEach(product => {
+                const analytics = product.analytics || {};
+                const priceComparison = product.price_comparison || [];
+                let comparisonHtml = "";
+                
+                if (priceComparison.length > 0) {
+                    comparisonHtml = `<div class="mt-4 p-4 bg-blue-50 rounded-lg"><h4 class="font-semibold text-blue-800 mb-2">Price Comparison</h4><div class="space-y-2">${priceComparison.slice(0,3).map(comp => `<div class="flex justify-between items-center text-sm"><span class="text-gray-700">${comp.website}</span><span class="font-semibold text-green-600">₹${comp.price.toLocaleString("en-IN")}</span></div>`).join("")}</div></div>`;
+                }
+                const productCard = `<div class="border border-[#EAE4D5] rounded-xl p-4 md:p-6 fade-in hover:shadow-lg transition-shadow bg-white"><div class="flex flex-col md:flex-row items-start gap-5"><img src="${product.image_url || "https://via.placeholder.com/100?text=No+Image"}" alt="Product" class="w-24 h-24 object-contain rounded-lg border border-[#EAE4D5]"><div class="flex-1"><h3 class="font-semibold text-gray-800 mb-1">${product.title}</h3><p class="text-sm text-gray-500 mb-2">${product.brand || "N/A"} • ${product.website || "Unknown"}</p><div class="flex items-center gap-2 mb-4"><span class="bg-${product.threshold_type === "percentage" ? "blue" : "green"}-100 text-${product.threshold_type === "percentage" ? "blue" : "green"}-800 px-2 py-1 rounded-full text-xs">${product.threshold_type === "percentage" ? product.threshold + "% Drop" : "₹" + product.threshold + " Target"}</span><span class="text-xs text-gray-500">${product.alerts_sent} alerts sent</span></div><div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-center border-t border-b border-gray-200 py-3 my-3"><div><div class="font-medium text-slate-500 text-xs">Current</div><div class="font-bold text-lg">₹${product.current_price.toLocaleString("en-IN")}</div></div><div><div class="font-medium text-slate-500 text-xs">Original</div><div class="font-bold text-lg">₹${product.original_price.toLocaleString("en-IN")}</div></div><div><div class="font-medium text-slate-500 text-xs">Lowest</div><div class="font-bold text-lg text-green-600">₹${analytics.lowest_price ? analytics.lowest_price.toLocaleString("en-IN") : "N/A"}</div></div><div><div class="font-medium text-slate-500 text-xs">Change</div><div class="font-bold text-lg ${analytics.price_change_percentage && analytics.price_change_percentage < 0 ? "text-green-600" : "text-red-600"}">${analytics.price_change_percentage ? analytics.price_change_percentage.toFixed(1) : "0.0"}%</div></div></div>${comparisonHtml}<div class="flex flex-wrap gap-2 mt-4"><button onclick="showInsights('${product.id}')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm transition-colors"><i class="fas fa-brain mr-1"></i>AI Insights</button><button onclick="showForecast('${product.id}')" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded-lg text-sm transition-colors"><i class="fas fa-crystal-ball mr-1"></i>Predict</button><button onclick="createChart('${product.id}')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-lg text-sm transition-colors"><i class="fas fa-chart-line mr-1"></i>Price Chart</button><button onclick="removeProduct('${product.id}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-sm transition-colors"><i class="fas fa-trash mr-1"></i>Remove</button><a href="${product.url}" target="_blank" class="bg-[#B6B09F] hover:bg-opacity-80 text-white px-3 py-1 rounded-lg text-sm transition-colors"><i class="fas fa-external-link-alt mr-1"></i>View</a></div></div></div><div id="chart-${product.id}" class="mt-4 hidden"><canvas id="priceChart-${product.id}" width="400" height="200"></canvas></div></div>`;
+                const div = document.createElement("div");
+                div.innerHTML = productCard;
+                container.appendChild(div);
+            });
+        };
+        const updateDashboardStats = (summary) => {
+            document.getElementById("totalProducts").textContent = summary.total_products || 0;
+            document.getElementById("activeAlerts").textContent = summary.total_alerts_sent || 0;
+            document.getElementById("totalSaved").textContent = `₹${(summary.total_savings || 0).toLocaleString("en-IN", {maximumFractionDigits: 0})}`;
+            document.getElementById("liveCount").textContent = `${summary.total_products || 0} Products Tracked`;
+        };
+        const updateGreatestDealCard = (deal) => {
+            const card = { icon: document.getElementById("dealIcon"), title: document.getElementById("dealTitle"), desc: document.getElementById("dealDescription"), savings: document.getElementById("dealSavings"), container: document.getElementById("greatestDealCard") };
+            if (deal) {
+                card.icon.className = "fas fa-fire text-2xl text-red-500"; card.title.textContent = "Greatest Deal Found!"; card.desc.textContent = `${deal.title.substring(0, 50)}...`; card.savings.textContent = `Save ₹${deal.savings.toLocaleString("en-IN")} (${deal.drop_percentage}% off)`; card.savings.className = "bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold"; card.container.onclick = () => window.open(deal.url, "_blank"); card.container.style.cursor = "pointer";
+            } else {
+                card.icon.className = "fas fa-bell text-2xl"; card.title.textContent = "Price Alert!"; card.desc.textContent = "No deals found yet. Track a product!"; card.savings.textContent = "Track to Save!"; card.savings.className = "bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-semibold"; card.container.onclick = null; card.container.style.cursor = "default";
+            }
+        };
+        async function showInsights(productId) {
+            toggleModal('insightsModal', true);
+            const insightsContent = document.getElementById("insightsContent");
+            insightsContent.innerHTML = `<div class="text-center"><i class="fas fa-spinner fa-spin text-4xl text-[#B6B09F]"></i><p class="mt-4 text-slate-600">Consulting the AI oracle...</p></div>`;
+            try {
+                const response = await fetchApi(`/product/${productId}/insights`);
+                const { analysis, price_comparison } = response;
+                let comparisonHtml = '<h4 class="text-slate-500 italic">No other online prices were found.</h4>';
+                if (price_comparison && price_comparison.length > 0) {
+                    comparisonHtml = price_comparison.map(item => `<div class="flex justify-between items-center text-sm py-2 border-b border-slate-200 last:border-b-0"><span class="text-gray-700 font-medium capitalize">${item.website.replace(/\.com|\.in/g, '')}</span><a href="${item.url}" target="_blank" class="font-semibold text-green-600 hover:text-green-700 transition">₹${item.price.toLocaleString("en-IN")} <i class="fas fa-external-link-alt text-xs ml-1 opacity-70"></i></a></div>`).join('');
+                }
+                const decisionMap = { 'BUY NOW': ['green-600', 'border-green-500', 'fa-check-circle'], 'WAIT': ['orange-500', 'border-orange-400', 'fa-clock'], 'CONSIDER': ['blue-500', 'border-blue-400', 'fa-info-circle'] };
+                const [color, border, icon] = decisionMap[(analysis.recommendation.decision || "").toUpperCase()] || ['slate-700', 'border-slate-400', 'fa-circle-question'];
+                insightsContent.innerHTML = `<div class="space-y-6"><div class="insight-card border-l-4 ${border} p-6 rounded-xl shadow-sm"><h3 class="text-2xl font-bold mb-3 ${color}"><i class="fas ${icon} mr-3"></i>AI Verdict: ${analysis.recommendation.decision}</h3><p class="text-slate-700 text-lg">${analysis.recommendation.reason}</p></div><div class="grid md:grid-cols-2 gap-6"><div class="insight-card p-6 rounded-xl"><h3 class="text-xl font-semibold mb-3 text-[#000000]"><i class="fas fa-file-alt text-blue-500 mr-2"></i>Product Overview</h3><p class="text-slate-600 leading-relaxed">${analysis.description}</p></div><div class="insight-card p-6 rounded-xl"><h3 class="text-xl font-semibold mb-3 text-[#000000]"><i class="fas fa-search-dollar text-yellow-500 mr-2"></i>Price Analysis</h3><p class="text-slate-600 leading-relaxed">${analysis.price_analysis}</p></div><div class="insight-card p-6 rounded-xl"><h3 class="text-xl font-semibold mb-3 text-[#000000]"><i class="fas fa-lightbulb text-purple-500 mr-2"></i>Smart Buying Tip</h3><p class="text-slate-600 leading-relaxed">${analysis.buying_tip}</p></div><div class="insight-card p-6 rounded-xl"><h3 class="text-xl font-semibold mb-3 text-[#000000]"><i class="fas fa-balance-scale text-green-500 mr-2"></i>Price Comparison</h3><div class="space-y-1">${comparisonHtml}</div></div></div></div>`;
+            } catch (error) {
+                insightsContent.innerHTML = `<div class="text-center text-red-600 bg-red-50 p-6 rounded-lg"><i class="fas fa-exclamation-triangle text-3xl mb-3"></i><h3 class="font-semibold">Analysis Failed</h3><p>Unable to load AI insights: ${error.message}</p></div>`;
+            }
+        }
+        
+        // ** NEW AND UPDATED FUNCTIONS FOR PRODUCT COMPARISON **
+        function renderComparisonResults(products, analysis, container) {
+            const bestProductIndex = analysis.best_value.product_index;
+            const bestProduct = products[bestProductIndex];
+            const numProducts = products.length;
+
+            const bestPickHtml = `
+                <div class="bg-green-50 border-l-4 border-green-500 p-6 rounded-lg mb-8 fade-in">
+                    <h3 class="text-2xl font-bold text-green-800 mb-2"><i class="fas fa-trophy mr-2 text-yellow-500"></i> AI Best Value Pick</h3>
+                    <p class="text-lg font-semibold text-green-900">${bestProduct.title}</p>
+                    <p class="mt-2 text-green-700">${analysis.best_value.reason}</p>
+                </div>
+            `;
+
+            const gridStyle = `style="display: grid; grid-template-columns: 200px repeat(${numProducts}, 1fr);"`;
+
+            const tableHtml = `
+                <div class="border rounded-lg overflow-hidden shadow-md fade-in">
+                    <div class="bg-slate-100" ${gridStyle}>
+                        <div class="p-4 font-semibold text-slate-800">Feature</div>
+                        ${products.map(p => `
+                            <div class="p-3 text-center border-l border-slate-200">
+                                <img src="${p.image_url || 'https://via.placeholder.com/100?text=N/A'}" alt="${p.title}" class="w-20 h-20 object-contain mx-auto rounded-md border mb-2 bg-white">
+                                <a href="${p.url}" target="_blank" class="text-sm font-semibold text-[#B6B09F] hover:underline">${p.title.substring(0, 50)}...</a>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div>
+                        ${Object.entries(analysis.feature_comparison).map(([feature, values]) => `
+                            <div class="border-t border-slate-200 items-center" ${gridStyle}>
+                                <div class="p-4 font-semibold text-slate-600 bg-slate-50 self-stretch flex items-center">${feature}</div>
+                                ${values.map((value, index) => {
+                                    const isWinnerCol = index === bestProductIndex;
+                                    return `<div class="p-4 text-center text-slate-700 border-l border-slate-200 ${isWinnerCol ? 'bg-green-50' : ''} self-stretch flex items-center justify-center">${value}</div>`;
+                                }).join('')}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            
+            const summaryHtml = `
+                <div class="mt-8 bg-blue-50 border-l-4 border-blue-500 p-6 rounded-lg fade-in">
+                    <h3 class="text-xl font-bold text-blue-800 mb-2"><i class="fas fa-file-invoice-dollar mr-2"></i> AI Summary</h3>
+                    <p class="text-blue-700">${analysis.comparison_summary}</p>
+                </div>
+            `;
+
+            const backButtonHtml = `
+                <button onclick="resetComparisonView()" class="mt-8 w-full bg-slate-600 hover:bg-slate-700 text-white font-semibold py-3 rounded-lg transition-colors">
+                    <i class="fas fa-arrow-left mr-2"></i> Compare Other Products
+                </button>
+            `;
+
+            container.innerHTML = bestPickHtml + tableHtml + summaryHtml + backButtonHtml;
+        }
+
+        async function compareProducts() {
+            const urls = [
+                document.getElementById('compareUrl1').value.trim(),
+                document.getElementById('compareUrl2').value.trim(),
+                document.getElementById('compareUrl3').value.trim()
+            ].filter(url => url);
+
+            if (urls.length < 2) {
+                showMessage('Please enter at least two product URLs.', 'error');
+                return;
+            }
+
+            showLoading(true, 'Comparing products...');
+            const resultsContainer = document.getElementById('comparisonResults');
+            const formContainer = document.getElementById('comparisonForm');
+
+            try {
+                const data = await fetchApi('/compare_products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ urls })
+                });
+
+                if (!data.success) throw new Error(data.error);
+
+                renderComparisonResults(data.scraped_data, data.ai_analysis, resultsContainer);
+                
+                formContainer.classList.add('hidden');
+                resultsContainer.classList.remove('hidden');
+
+            } catch (error) {
+                showMessage(`Comparison failed: ${error.message}`, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        const createChart = (productId) => {
+            const product = tracked_products.find(p => p.id === productId); if (!product) return;
+            const chartContainer = document.getElementById(`chart-${productId}`);
+            const isHidden = chartContainer.classList.contains("hidden");
+            chartContainer.classList.toggle("hidden", !isHidden);
+            if (isHidden) {
+                if (chartInstances[productId]) chartInstances[productId].destroy();
+                chartInstances[productId] = new Chart(document.getElementById(`priceChart-${productId}`).getContext("2d"), { type: "line", data: { labels: product.timestamp_history.map(ts => new Date(ts).toLocaleDateString()), datasets: [{ label: "Price (₹)", data: product.price_history, borderColor: "#B6B09F", backgroundColor: "rgba(182, 176, 159, 0.1)", tension: 0.1, fill: true }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false, ticks: { callback: value => "₹" + value.toLocaleString("en-IN") } } }, plugins: { tooltip: { callbacks: { label: context => "Price: ₹" + context.parsed.y.toLocaleString("en-IN") } } } } });
+            }
+        };
+        async function removeProduct(productId) {
+            if (!confirm("Are you sure you want to remove this product?")) return;
+            try {
+                await fetchApi(`/remove_product/${productId}`, { method: "DELETE" });
+                showMessage("Product removed successfully"); loadApp();
+            } catch (error) { showMessage(`Failed to remove product: ${error.message}`, "error"); }
+        }
+        async function checkAllPrices() {
+            const btn = document.getElementById("checkBtn"); const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Checking...'; btn.disabled = true;
+            try {
+                const response = await fetchApi("/check_prices", { method: "POST" });
+                showMessage(`Price check completed! ${response.alerts_sent} alerts sent.`); loadApp();
+            } catch (error) { showMessage(`Price check failed: ${error.message}`, "error");
+            } finally { btn.innerHTML = originalHTML; btn.disabled = false; }
+        }
+        async function exportData() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/export_data`); if (!response.ok) throw new Error("Export failed");
+                const blob = await response.blob(); const url = window.URL.createObjectURL(blob);
+                const a = document.createElement("a"); a.href = url; a.download = `droplify_export_${new Date().toISOString().split("T")[0]}.json`;
+                document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(url);
+                showMessage("Data exported successfully!");
+            } catch (error) { showMessage(`Export failed: ${error.message}`, "error"); }
+        }
+        document.getElementById("trackingForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const formData = { url: document.getElementById("productUrl").value, email: document.getElementById("userEmail").value, threshold_type: document.getElementById("alertType").value, threshold_value: document.getElementById("targetValue").value };
+            const btn = document.getElementById("submitBtn"); const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...'; btn.disabled = true;
+            try {
+                await fetchApi("/add_product", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(formData) });
+                showMessage("Product added successfully! You'll be notified of price drops.");
+                e.target.reset(); loadApp();
+            } catch (error) { showMessage(`Failed to add product: ${error.message}`, "error");
+            } finally { btn.innerHTML = originalHTML; btn.disabled = false; }
+        });
+        
+        const openQuickActionModal = (action, title) => {
+            toggleModal('quickActionModal', true);
+            document.getElementById('quickActionModalTitle').textContent = title;
+            document.getElementById('quickActionType').value = action;
+            document.getElementById('quickActionUrl').value = '';
+            document.getElementById('quickActionResults').innerHTML = '';
+        };
+
+        document.getElementById('quickActionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const url = document.getElementById('quickActionUrl').value;
+            const action = document.getElementById('quickActionType').value;
+            const resultsContainer = document.getElementById('quickActionResults');
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+
+            if (!url) {
+                showMessage('Please enter a valid product URL.', 'error');
+                return;
+            }
+
+            resultsContainer.innerHTML = `<div class="text-center"><i class="fas fa-spinner fa-spin text-4xl text-[#B6B09F]"></i><p class="mt-4 text-slate-600">Analyzing URL...</p></div>`;
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetchApi('/quick_action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, action })
+                });
+                
+                resultsContainer.innerHTML = ''; 
+
+                switch(action) {
+                    case 'recommendation':
+                        renderQuickRecommendation(response, resultsContainer);
+                        break;
+                    case 'insights':
+                        renderQuickInsights(response, resultsContainer);
+                        break;
+                    case 'prediction':
+                        renderQuickPrediction(response, resultsContainer);
+                        break;
+                    case 'history':
+                        renderQuickHistory(response, resultsContainer);
+                        break;
+                }
+            } catch (error) {
+                const errorMessage = error.message || "An unknown error occurred.";
+                if (action === 'prediction') {
+                    renderQuickPrediction({ error: errorMessage }, resultsContainer);
+                } else {
+                    resultsContainer.innerHTML = `<div class="text-center text-red-600 bg-red-50 p-6 rounded-lg"><i class="fas fa-exclamation-triangle text-3xl mb-3"></i><h3 class="font-semibold">Analysis Failed</h3><p>${errorMessage}</p></div>`;
+                }
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+
+        const renderQuickRecommendation = (data, container) => {
+            const { recommendation } = data.analysis;
+            const decisionMap = { 'BUY NOW': ['green-600', 'border-green-500', 'fa-check-circle'], 'WAIT': ['orange-500', 'border-orange-400', 'fa-clock'], 'CONSIDER': ['blue-500', 'border-blue-400', 'fa-info-circle'] };
+            const [color, border, icon] = decisionMap[(recommendation.decision || "").toUpperCase()] || ['slate-700', 'border-slate-400', 'fa-circle-question'];
+
+            container.innerHTML = `
+                <div class="insight-card border-l-4 ${border} p-6 rounded-xl shadow-sm">
+                    <h3 class="text-2xl font-bold mb-3 ${color}"><i class="fas ${icon} mr-3"></i>AI Verdict: ${recommendation.decision}</h3>
+                    <p class="text-slate-700 text-lg">${recommendation.reason}</p>
+                </div>
+            `;
+        };
+
+        const renderQuickInsights = (data, container) => {
+            const { analysis, price_comparison } = data;
+            let comparisonHtml = '<h4 class="text-slate-500 italic">No other online prices were found.</h4>';
+            if (price_comparison && price_comparison.length > 0) {
+                comparisonHtml = price_comparison.map(item => `<div class="flex justify-between items-center text-sm py-2 border-b border-slate-200 last:border-b-0"><span class="text-gray-700 font-medium capitalize">${item.website.replace(/\.com|\.in/g, '')}</span><a href="${item.url}" target="_blank" class="font-semibold text-green-600 hover:text-green-700 transition">₹${item.price.toLocaleString("en-IN")} <i class="fas fa-external-link-alt text-xs ml-1 opacity-70"></i></a></div>`).join('');
+            }
+            const decisionMap = { 'BUY NOW': ['green-600', 'border-green-500', 'fa-check-circle'], 'WAIT': ['orange-500', 'border-orange-400', 'fa-clock'], 'CONSIDER': ['blue-500', 'border-blue-400', 'fa-info-circle'] };
+            const [color, border, icon] = decisionMap[(analysis.recommendation.decision || "").toUpperCase()] || ['slate-700', 'border-slate-400', 'fa-circle-question'];
+            container.innerHTML = `<div class="space-y-6"><div class="insight-card border-l-4 ${border} p-6 rounded-xl shadow-sm"><h3 class="text-2xl font-bold mb-3 ${color}"><i class="fas ${icon} mr-3"></i>AI Verdict: ${analysis.recommendation.decision}</h3><p class="text-slate-700 text-lg">${analysis.recommendation.reason}</p></div><div class="grid md:grid-cols-2 gap-6"><div class="insight-card p-6 rounded-xl"><h3 class="text-xl font-semibold mb-3 text-[#000000]"><i class="fas fa-file-alt text-blue-500 mr-2"></i>Product Overview</h3><p class="text-slate-600 leading-relaxed">${analysis.description}</p></div><div class="insight-card p-6 rounded-xl"><h3 class="text-xl font-semibold mb-3 text-[#000000]"><i class="fas fa-search-dollar text-yellow-500 mr-2"></i>Price Analysis</h3><p class="text-slate-600 leading-relaxed">${analysis.price_analysis}</p></div><div class="insight-card p-6 rounded-xl"><h3 class="text-xl font-semibold mb-3 text-[#000000]"><i class="fas fa-lightbulb text-purple-500 mr-2"></i>Smart Buying Tip</h3><p class="text-slate-600 leading-relaxed">${analysis.buying_tip}</p></div><div class="insight-card p-6 rounded-xl"><h3 class="text-xl font-semibold mb-3 text-[#000000]"><i class="fas fa-balance-scale text-green-500 mr-2"></i>Price Comparison</h3><div class="space-y-1">${comparisonHtml}</div></div></div></div>`;
+        };
+
+        const renderQuickPrediction = (data, container) => {
+            if (data.error) {
+                container.innerHTML = `
+                    <div class="text-center p-4 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
+                        <i class="fas fa-info-circle text-3xl text-blue-500 mb-3"></i>
+                        <h3 class="text-lg font-semibold text-blue-800">Prediction Requires History</h3>
+                        <p class="text-blue-700 mt-1">${data.error}</p>
+                        <p class="text-blue-700 mt-2">Track this product to gather price history for an accurate forecast.</p>
+                    </div>
+                `;
+            }
+        };
+
+        const renderQuickHistory = (data, container) => {
+            container.innerHTML = `
+                <div class="insight-card p-6 rounded-xl shadow-sm text-center">
+                    <h3 class="text-xl font-semibold mb-3 text-[#000000]">Current Scraped Price</h3>
+                    <div class="text-4xl font-bold text-green-600 my-4">₹${data.current_price.toLocaleString("en-IN")}</div>
+                    <p class="text-slate-600">This is the current price found at the provided URL.</p>
+                </div>
+                <div class="text-center mt-4 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
+                    <i class="fas fa-info-circle text-2xl text-blue-500 mb-2"></i>
+                    <p class="text-blue-700">A full price history chart is available only for products you are actively tracking. Add this product to your list to start building its history!</p>
+                </div>
+            `;
+        };
+        
+        // Add a new style rule for the category buttons to match the Droplify theme
+        const styleSheet = document.createElement("style");
+        styleSheet.innerText = `
+            .category-btn {
+                background-color: #f3f4f6;
+                border: 1px solid #d1d5db;
+                color: #4b5563;
+                padding: 0.5rem 1rem;
+                border-radius: 9999px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                font-weight: 500;
+            }
+            .category-btn:hover {
+                background-color: #EAE4D5;
+                border-color: #B6B09F;
+            }
+            .category-btn.active {
+                background-color: #B6B09F;
+                color: white;
+                border-color: #B6B09F;
+            }
+        `;
+        document.head.appendChild(styleSheet);
+
+
+        document.addEventListener("DOMContentLoaded", () => {
+            loadApp(); // Loads your tracked products
+            loadHotDeals(); // [NEW] Loads the hot deals
+        });
+        setInterval(loadApp, 300000); // Refresh data every 5 minutes
+    </script>
+</body>
+</html>

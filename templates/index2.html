@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Droplify - Never Miss a Price Drop</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .gradient-bg { background: linear-gradient(135deg, #B6B09F 0%, #EAE4D5 100%); }
+        .hover-lift { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .hover-lift:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.08); }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .modal-overlay { animation: fadeIn 0.3s ease; }
+        .modal-content { animation: scaleUp 0.3s ease; }
+        @keyframes scaleUp { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body class="bg-[#F2F2F2]">
+    <div id="messageContainer" class="fixed top-20 right-4 z-50 w-80"></div>
+
+    <div id="loadingModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[100] flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg flex items-center space-x-4 shadow-xl">
+            <i class="fas fa-spinner fa-spin text-2xl text-[#B6B09F]"></i>
+            <span id="loadingText" class="text-slate-700">Processing...</span>
+        </div>
+    </div>
+
+    <div id="demoModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-[90] flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-8 relative modal-content">
+            <button onclick="toggleDemoModal(false)" class="absolute top-4 right-4 text-slate-500 hover:text-slate-800 transition-colors">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+            <h2 class="text-3xl font-bold text-center mb-8 text-[#000000]">How It Works in 4 Simple Steps</h2>
+            <div class="grid md:grid-cols-4 gap-6 text-center">
+                <div class="flex flex-col items-center"><div class="w-20 h-20 bg-[#EAE4D5] text-[#B6B09F] rounded-full flex items-center justify-center text-3xl mb-4"><i class="fas fa-link"></i></div><h3 class="font-bold text-lg mb-2">1. Copy URL</h3><p class="text-slate-600 text-sm">Find a product you love on any major store and copy its URL.</p></div>
+                <div class="flex flex-col items-center"><div class="w-20 h-20 bg-[#EAE4D5] text-[#B6B09F] rounded-full flex items-center justify-center text-3xl mb-4"><i class="fas fa-paste"></i></div><h3 class="font-bold text-lg mb-2">2. Paste & Set</h3><p class="text-slate-600 text-sm">Paste the URL, add your email, and set a price goal.</p></div>
+                <div class="flex flex-col items-center"><div class="w-20 h-20 bg-[#EAE4D5] text-[#B6B09F] rounded-full flex items-center justify-center text-3xl mb-4"><i class="fas fa-bell"></i></div><h3 class="font-bold text-lg mb-2">3. Get Alerted</h3><p class="text-slate-600 text-sm">We'll monitor the price 24/7 and email you the moment it drops.</p></div>
+                <div class="flex flex-col items-center"><div class="w-20 h-20 bg-[#EAE4D5] text-[#B6B09F] rounded-full flex items-center justify-center text-3xl mb-4"><i class="fas fa-rupee-sign"></i></div><h3 class="font-bold text-lg mb-2">4. Save Money</h3><p class="text-slate-600 text-sm">Buy your product at the best price and enjoy your savings!</p></div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="fixed top-0 w-full z-40 bg-white/95 backdrop-blur-sm border-b border-[#EAE4D5]">
+        <div class="max-w-6xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3"><div class="w-9 h-9 bg-[#B6B09F] rounded-lg flex items-center justify-center"><i class="fas fa-tags text-white text-base"></i></div><span class="text-xl font-bold text-[#000000]">Droplify</span></div>
+                <div class="flex items-center space-x-4"><span id="liveCount" class="text-sm text-[#000000] hidden md:block">0 Products Tracked</span><button class="bg-[#B6B09F] hover:bg-opacity-80 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">Download App</button></div>
+            </div>
+        </div>
+    </nav>
+
+    <section class="gradient-bg text-white pt-24 pb-20">
+        <div class="max-w-6xl mx-auto px-4 py-16">
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <div>
+                    <div class="inline-flex items-center bg-white/20 rounded-full px-3 py-1 mb-6 text-sm"><span class="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>Live Price Tracking</div>
+                    <h1 class="text-4xl lg:text-6xl font-bold mb-6 text-[#000000]">Never Miss a <span class="text-[#F2F2F2]">Price Drop</span> Again</h1>
+                    <p class="text-xl text-[#000000]/90 mb-8">Track product prices from your favorite online stores and get notified instantly when they fall. Save money effortlessly.</p>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <button id="startTrackingBtn" class="bg-white text-[#B6B09F] font-semibold px-6 py-3 rounded-lg hover:bg-slate-100 transition-colors">Start Tracking Now</button>
+                        <button onclick="toggleDemoModal(true)" class="border-2 border-white/50 text-white px-6 py-3 rounded-lg hover:bg-white/20 transition-colors">Watch Demo</button>
+                    </div>
+                </div>
+                <div class="flex justify-center">
+                    <div id="greatestDealCard" class="bg-white/10 rounded-2xl p-6 hover-lift w-full max-w-sm">
+                        <div class="bg-white rounded-xl p-6 text-center shadow-lg">
+                            <div class="w-12 h-12 bg-[#EAE4D5] text-[#B6B09F] rounded-xl mx-auto mb-4 flex items-center justify-center"><i id="dealIcon" class="fas fa-bell text-2xl"></i></div>
+                            <h3 id="dealTitle" class="font-bold text-[#000000] text-lg mb-2">Price Alert!</h3>
+                            <p id="dealDescription" class="text-[#000000] text-sm mb-4">No deals found yet. Track a product!</p>
+                            <div id="dealSavings" class="bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold">Track to Save!</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="tracker" class="py-20 bg-white">
+        <div class="max-w-4xl mx-auto px-4">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-[#000000] mb-3">Track Your First Product</h2>
+                <p class="text-[#000000] max-w-xl mx-auto">Simply paste the product URL from Amazon, Flipkart, Myntra, etc., provide your email, and set your alert.</p>
+            </div>
+            <div class="bg-white rounded-2xl shadow-xl border border-[#EAE4D5] p-8">
+                <form id="trackingForm" class="space-y-6">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div><label class="block text-sm font-semibold text-[#000000] mb-2">Product URL</label><input type="url" id="productUrl" required class="w-full px-4 py-3 border border-[#B6B09F] rounded-lg focus:ring-2 focus:ring-[#B6B09F] transition" placeholder="https://www.amazon.in/product-link"></div>
+                        <div><label class="block text-sm font-semibold text-[#000000] mb-2">Email Address</label><input type="email" id="userEmail" required class="w-full px-4 py-3 border border-[#B6B09F] rounded-lg focus:ring-2 focus:ring-[#B6B09F] transition" placeholder="your.email@example.com"></div>
+                    </div>
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <div><label class="block text-sm font-semibold text-[#000000] mb-2">Alert Type</label><select id="alertType" class="w-full px-4 py-3 border border-[#B6B09F] rounded-lg bg-white transition"><option value="percentage">Percentage Drop (%)</option><option value="fixed">Fixed Price (₹)</option></select></div>
+                        <div><label class="block text-sm font-semibold text-[#000000] mb-2">Target Value</label><input type="number" id="targetValue" required min="1" step="1" class="w-full px-4 py-3 border border-[#B6B09F] rounded-lg focus:ring-2 focus:ring-[#B6B09F] transition" placeholder="10"></div>
+                        <div class="flex items-end"><button type="submit" id="submitBtn" class="w-full bg-[#B6B09F] hover:bg-opacity-80 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center"><i class="fas fa-plus mr-2"></i><span>Start Tracking</span></button></div>
+                    </div>
+                </form>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                    <button onclick="setQuick(10)" class="bg-[#F2F2F2] hover:bg-[#EAE4D5] text-[#000000] p-3 rounded-lg text-sm font-medium transition-colors">10% Drop</button>
+                    <button onclick="setQuick(20)" class="bg-[#F2F2F2] hover:bg-[#EAE4D5] text-[#000000] p-3 rounded-lg text-sm font-medium transition-colors">20% Drop</button>
+                    <button onclick="setQuick(30)" class="bg-[#F2F2F2] hover:bg-[#EAE4D5] text-[#000000] p-3 rounded-lg text-sm font-medium transition-colors">30% Drop</button>
+                    <button onclick="setQuick(50)" class="bg-[#F2F2F2] hover:bg-[#EAE4D5] text-[#000000] p-3 rounded-lg text-sm font-medium transition-colors">50% Drop</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-20 bg-[#F2F2F2]">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="grid md:grid-cols-3 gap-6 mb-12">
+                <div class="bg-white rounded-xl p-6 text-center hover-lift shadow-sm border border-[#EAE4D5]"><div class="w-12 h-12 bg-[#EAE4D5] text-[#B6B09F] rounded-xl mx-auto mb-3 flex items-center justify-center"><i class="fas fa-shopping-cart"></i></div><h3 class="text-3xl font-bold text-[#000000]" id="totalProducts">0</h3><p class="text-[#000000]">Products Tracked</p></div>
+                <div class="bg-white rounded-xl p-6 text-center hover-lift shadow-sm border border-[#EAE4D5]"><div class="w-12 h-12 bg-[#EAE4D5] text-[#B6B09F] rounded-xl mx-auto mb-3 flex items-center justify-center"><i class="fas fa-bell"></i></div><h3 class="text-3xl font-bold text-[#000000]" id="activeAlerts">0</h3><p class="text-[#000000]">Alerts Sent</p></div>
+                <div class="bg-white rounded-xl p-6 text-center hover-lift shadow-sm border border-[#EAE4D5]"><div class="w-12 h-12 bg-[#EAE4D5] text-[#B6B09F] rounded-xl mx-auto mb-3 flex items-center justify-center"><i class="fas fa-rupee-sign"></i></div><h3 class="text-3xl font-bold text-[#000000]" id="totalSaved">₹0</h3><p class="text-[#000000]">Total Money Saved</p></div>
+            </div>
+            <div class="bg-white rounded-xl shadow-xl p-6 border border-[#EAE4D5]">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-[#000000]">Your Tracked Products</h3>
+                    <div class="flex gap-3">
+                        <button onclick="checkAllPrices()" id="checkBtn" class="bg-[#B6B09F] hover:bg-opacity-80 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"><i class="fas fa-sync-alt mr-1"></i>Check Prices</button>
+                        <button onclick="exportData()" class="bg-[#000000] hover:bg-opacity-80 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"><i class="fas fa-download mr-1"></i>Export</button>
+                    </div>
+                </div>
+                <div id="productsList" class="space-y-4">
+                    <div id="noProductsPlaceholder" class="text-center py-12 text-[#000000]">
+                        <div class="w-16 h-16 bg-[#F2F2F2] rounded-full mx-auto mb-4 flex items-center justify-center"><i class="fas fa-shopping-cart text-2xl text-[#B6B09F]"></i></div>
+                        <h3 class="text-lg font-semibold text-[#000000] mb-2">No products tracked yet</h3>
+                        <p class="text-[#000000]">Add your first product above to start saving!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-[#000000] text-white py-10">
+        <div class="max-w-6xl mx-auto px-4 text-center">
+            <div class="flex items-center justify-center space-x-3 mb-4"><div class="w-9 h-9 bg-[#B6B09F] rounded-lg flex items-center justify-center"><i class="fas fa-tags text-white text-base"></i></div><span class="text-xl font-bold">Droplify</span></div>
+            <p class="text-slate-400">Never miss a price drop again. Save money effortlessly.</p>
+        </div>
+    </footer>
+
+    <script>
+        const API_BASE_URL = ''; // Same origin
+        let chartInstances = {};
+
+        // --- Utility & UI Functions ---
+        function showMessage(message, type = 'success') {
+            const container = document.getElementById('messageContainer');
+            const bgColor = type === 'success' ? 'bg-[#B6B09F] text-white' : 'bg-red-500 text-white';
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `mb-4 p-4 rounded-lg shadow-lg fade-in ${bgColor}`;
+            messageDiv.innerHTML = `<div class="flex justify-between items-center"><span class="font-medium">${message}</span><button onclick="this.parentElement.parentElement.remove()" class="ml-4">&times;</button></div>`;
+            container.appendChild(messageDiv);
+            setTimeout(() => messageDiv.remove(), 5000);
+        }
+
+        function showLoading(show = true, text = 'Processing...') {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loadingModal').classList.toggle('hidden', !show);
+        }
+
+        function setQuick(percentage) {
+            document.getElementById('alertType').value = 'percentage';
+            document.getElementById('targetValue').value = percentage;
+        }
+
+        function scrollTo(elementId) {
+            document.getElementById(elementId).scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        
+        function toggleDemoModal(show) {
+            document.getElementById('demoModal').classList.toggle('hidden', !show);
+        }
+        
+        // --- API Functions ---
+        async function fetchApi(endpoint, options = {}) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api${endpoint}`, options);
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || `HTTP error! Status: ${response.status}`);
+                }
+                return data;
+            } catch (error) {
+                console.error('API Error:', error);
+                throw error;
+            }
+        }
+
+        // --- Core Application Logic ---
+        function createProductCardHTML(product) {
+            const analytics = product.analytics || { lowest_price: 0, highest_price: 0, average_price: 0 };
+            return `
+            <div id="product-card-${product.id}" class="border border-[#EAE4D5] rounded-xl p-4 md:p-6 fade-in hover:shadow-lg transition-shadow bg-white">
+                <div class="flex flex-col md:flex-row items-start gap-5">
+                    <img src="${product.image_url || 'https://via.placeholder.com/120?text=No+Image'}" alt="Product" class="w-24 h-24 object-contain rounded-lg border border-[#EAE4D5]">
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-gray-800 mb-1">${product.title}</h3>
+                        <p class="text-sm text-gray-500 mb-4">${product.brand || 'N/A'}</p>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-center border-t border-b border-gray-200 py-3 my-3">
+                            <div><div class="font-medium text-slate-500 text-xs">Current</div><div class="text-lg font-bold text-green-600">₹${product.current_price.toLocaleString('en-IN')}</div></div>
+                            <div><div class="font-medium text-slate-500 text-xs">Lowest</div><div class="font-semibold text-gray-700">₹${(analytics.lowest_price || product.current_price).toLocaleString('en-IN')}</div></div>
+                            <div><div class="font-medium text-slate-500 text-xs">Highest</div><div class="font-semibold text-gray-700">₹${(analytics.highest_price || product.current_price).toLocaleString('en-IN')}</div></div>
+                            <div><div class="font-medium text-slate-500 text-xs">Average</div><div class="font-semibold text-gray-700">₹${(analytics.average_price || product.current_price).toLocaleString('en-IN')}</div></div>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2 md:ml-auto">
+                        <a href="${product.url}" target="_blank" class="bg-[#F2F2F2] hover:bg-[#EAE4D5] text-[#000000] h-10 w-10 flex items-center justify-center rounded-lg transition-colors" title="View Product"><i class="fas fa-external-link-alt"></i></a>
+                        <button onclick="handleRemoveProduct('${product.id}')" class="bg-red-100 hover:bg-red-200 text-red-600 h-10 w-10 flex items-center justify-center rounded-lg transition-colors" title="Remove Product"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-[#EAE4D5]"><canvas id="chart-${product.id}" height="80"></canvas></div>
+            </div>`;
+        }
+        
+        function addProductCard(product) {
+            const container = document.getElementById('productsList');
+            const placeholder = document.getElementById('noProductsPlaceholder');
+            // If placeholder is visible, clear the container before adding the first card
+            if (getComputedStyle(placeholder).display !== 'none') {
+                container.innerHTML = '';
+            }
+            const productCardHTML = createProductCardHTML(product);
+            container.insertAdjacentHTML('afterbegin', productCardHTML);
+            renderChart(product);
+        }
+
+        function renderProducts(products) {
+            const container = document.getElementById('productsList');
+            const placeholder = document.getElementById('noProductsPlaceholder');
+            container.innerHTML = ''; // Clear previous content
+            
+            if (!products || products.length === 0) {
+                container.innerHTML = placeholder.outerHTML;
+                container.querySelector('#noProductsPlaceholder').style.display = 'block';
+                return;
+            }
+            
+            products.forEach(product => {
+                container.innerHTML += createProductCardHTML(product);
+            });
+            
+            products.forEach(product => renderChart(product));
+        }
+
+        function renderChart(product) {
+            const chartId = `chart-${product.id}`;
+            const ctx = document.getElementById(chartId)?.getContext('2d');
+            if (!ctx) return;
+            if (chartInstances[chartId]) chartInstances[chartId].destroy();
+            chartInstances[chartId] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: product.timestamp_history.map(t => new Date(t).toLocaleDateString()),
+                    datasets: [{
+                        label: 'Price (₹)', data: product.price_history, borderColor: '#B6B09F',
+                        backgroundColor: 'rgba(182, 176, 159, 0.1)', fill: true, tension: 0.3,
+                        pointRadius: product.price_history.length < 20 ? 3 : 0
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { ticks: { callback: (value) => `₹${(value/1000).toFixed(1)}k` } },
+                        x: { display: product.price_history.length > 1 }
+                    }
+                }
+            });
+        }
+
+        function updateDashboardStats(summary) {
+            if (!summary) return;
+            document.getElementById('totalProducts').textContent = summary.total_products || 0;
+            document.getElementById('activeAlerts').textContent = summary.total_alerts_sent || 0;
+            document.getElementById('totalSaved').textContent = `₹${(summary.total_savings || 0).toLocaleString('en-IN')}`;
+            document.getElementById('liveCount').textContent = `${summary.total_products || 0} Products Tracked`;
+        }
+        
+        function updateGreatestDealCard(deal) {
+            if (deal) {
+                document.getElementById('dealIcon').className = "fas fa-fire text-2xl text-red-500";
+                document.getElementById('dealTitle').textContent = "Today's Hottest Deal!";
+                document.getElementById('dealDescription').textContent = deal.title.substring(0, 50) + '...';
+                document.getElementById('dealSavings').innerHTML = `<i class="fas fa-arrow-down"></i> Save ₹${deal.savings.toLocaleString('en-IN')} (${deal.drop_percentage}%)`;
+                document.getElementById('greatestDealCard').parentElement.onclick = () => window.open(deal.url, '_blank');
+                document.getElementById('greatestDealCard').parentElement.style.cursor = 'pointer';
+            }
+        }
+        
+        async function handleRemoveProduct(productId) {
+            if (!confirm("Are you sure you want to remove this product?")) return;
+            showLoading(true, "Removing product...");
+            try {
+                await fetchApi(`/remove_product/${productId}`, { method: 'DELETE' });
+                document.getElementById(`product-card-${productId}`).remove();
+                const summaryData = await fetchApi('/analytics/summary');
+                updateDashboardStats(summaryData.summary);
+                if (summaryData.summary.total_products === 0) {
+                   renderProducts([]); // Show the placeholder again
+                }
+                showMessage("Product removed successfully.");
+            } catch (err) {
+                showMessage("Error removing product: " + err.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function checkAllPrices() {
+            showLoading(true, 'Checking all prices...');
+            try {
+                const result = await fetchApi('/check_prices', { method: 'POST' });
+                showMessage(`Price check complete! ${result.alerts_sent} alert(s) sent.`);
+                await loadApp();
+            } catch (err) {
+                showMessage('Error checking prices: ' + err.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        async function exportData() {
+            showLoading(true, 'Exporting data...');
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/export_data`);
+                if (!response.ok) throw new Error((await response.json()).error || 'Export failed');
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none'; a.href = url;
+                a.download = `droplify_export_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a); a.click();
+                window.URL.revokeObjectURL(url); a.remove();
+                showMessage('Data exported successfully!');
+            } catch (err) {
+                showMessage('Error exporting data: ' + err.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function loadApp() {
+            showLoading(true, "Loading your products...");
+            try {
+                const [productsData, summaryData, dealData] = await Promise.all([
+                    fetchApi('/products'), fetchApi('/analytics/summary'), fetchApi('/greatest_deal')
+                ]);
+                renderProducts(productsData.products);
+                updateDashboardStats(summaryData.summary);
+                updateGreatestDealCard(dealData.deal);
+            } catch (err) {
+                showMessage("Failed to load application data: " + err.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // --- Event Listeners ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('startTrackingBtn').addEventListener('click', () => scrollTo('tracker'));
+            document.getElementById('trackingForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const submitBtn = document.getElementById('submitBtn');
+                const productData = {
+                    url: document.getElementById('productUrl').value,
+                    email: document.getElementById('userEmail').value,
+                    threshold_type: document.getElementById('alertType').value,
+                    threshold_value: document.getElementById('targetValue').value
+                };
+
+                if (!productData.url || !productData.email || !productData.threshold_value) {
+                    return showMessage('Please fill all fields.', 'error');
+                }
+
+                submitBtn.disabled = true;
+                showLoading(true, 'Scraping product data...');
+                
+                try {
+                    const result = await fetchApi('/add_product', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(productData)
+                    });
+                    showMessage('Product added successfully!');
+                    document.getElementById('trackingForm').reset();
+                    addProductCard(result.product);
+                    const summaryData = await fetchApi('/analytics/summary');
+                    updateDashboardStats(summaryData.summary);
+                } catch (err) {
+                    showMessage('Error: ' + err.message, 'error');
+                } finally {
+                    showLoading(false);
+                    submitBtn.disabled = false;
+                }
+            });
+
+            loadApp();
+        });
+    </script>
+</body>
+</html>

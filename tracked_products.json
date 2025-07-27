@@ -1,0 +1,46 @@
+[
+    {
+        "id": "1",
+        "url": "https://www.amazon.in/iPhone-16-128-GB-Control/dp/B0DGJHBX5Y/ref=sr_1_1_sspa?crid=1LR3V0UGKIKPY&dib=eyJ2IjoiMSJ9.NUmmhgTpkuMyxC5iZMICwKqg-4GpE7dFwCGgH5DZrO0fzn5thwCsBXioKT2ig0pQZ_msWK4tA8XWjCN3Tdj9PRmGvJWy6eYqFkzMg2TfXBGMT6UePy23wBShpNz34rW42nwIBXf95YhhA5tB1YXmDye5rX4_mAvfD8TNScPGEGvPNGPggOWk03Pw3xB4HHIv-r5gtfga0Y2BIQ5ugWD4YsAlmNmccWhpKeLkpY39g7w.8vW8CnjKnJeWvtzViQXFASl183dlZvwlNY9HZqgksT4&dib_tag=se&keywords=iphone%2B16&qid=1753524409&sprefix=iphone%2B16%2Caps%2C486&sr=8-1-spons&sp_csd=d2lkZ2V0TmFtZT1zcF9hdGY&th=1",
+        "email": "krish7lalani@gmail.com",
+        "title": "iPhone 16 128 GB: 5G Mobile Phone with Camera Control, A18 Chip and a Big Boost in Battery Life. Works with AirPods; Black",
+        "brand": "Visit the Apple Store",
+        "image_url": "https://m.media-amazon.com/images/I/31A-AWx8PLL._SY445_SX342_QL70_FMwebp_.jpg",
+        "threshold_type": "percentage",
+        "threshold": 20.0,
+        "current_price": 72400.0,
+        "original_price": 72400.0,
+        "price_history": [
+            72400.0
+        ],
+        "timestamp_history": [
+            "2025-07-26T15:37:16.722967"
+        ],
+        "last_checked": "2025-07-26T15:45:55.769707",
+        "alerts_sent": 0,
+        "website": "amazon.in",
+        "added_date": "2025-07-26T15:37:16.722967"
+    },
+    {
+        "id": "2",
+        "url": "https://www.amazon.in/iPhone-16-256-GB-Control/dp/B0DGJ54GQW/ref=sr_1_3?crid=1LR3V0UGKIKPY&dib=eyJ2IjoiMSJ9.NUmmhgTpkuMyxC5iZMICwKqg-4GpE7dFwCGgH5DZrO0fzn5thwCsBXioKT2ig0pQZ_msWK4tA8XWjCN3Tdj9PRmGvJWy6eYqFkzMg2TfXBGMT6UePy23wBShpNz34rW42nwIBXf95YhhA5tB1YXmDye5rX4_mAvfD8TNScPGEGvPNGPggOWk03Pw3xB4HHIv-r5gtfga0Y2BIQ5ugWD4YsAlmNmccWhpKeLkpY39g7w.8vW8CnjKnJeWvtzViQXFASl183dlZvwlNY9HZqgksT4&dib_tag=se&keywords=iphone%2B16&qid=1753524470&sprefix=iphone%2B16%2Caps%2C486&sr=8-3&th=1",
+        "email": "krish7lalani@gmail.com",
+        "title": "iPhone 16 256 GB: 5G Mobile Phone with Camera Control, A18 Chip and a Big Boost in Battery Life. Works with AirPods; Black",
+        "brand": "Visit the Apple Store",
+        "image_url": "https://m.media-amazon.com/images/I/31A-AWx8PLL._SY445_SX342_QL70_FMwebp_.jpg",
+        "threshold_type": "percentage",
+        "threshold": 10.0,
+        "current_price": 83900.0,
+        "original_price": 83900.0,
+        "price_history": [
+            83900.0
+        ],
+        "timestamp_history": [
+            "2025-07-26T15:38:17.266986"
+        ],
+        "last_checked": "2025-07-26T15:46:02.754375",
+        "alerts_sent": 0,
+        "website": "amazon.in",
+        "added_date": "2025-07-26T15:38:17.266986"
+    }
+]

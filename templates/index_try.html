@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Droplify - Never Miss a Price Drop</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <style>
+        .gradient-bg{background:linear-gradient(135deg,#b6b09f 0%,#eae4d5 100%)}
+        .hover-lift{transition:transform .3s ease,box-shadow .3s ease}
+        .hover-lift:hover{transform:translateY(-5px);box-shadow:0 10px 20px rgba(0,0,0,.08)}
+        .fade-in{animation:fadeIn .5s ease-in-out} @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        .modal-overlay{animation:fadeIn .3s ease}
+        .modal-content{animation:scaleUp .3s ease} @keyframes scaleUp{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+        .insight-card{background:linear-gradient(135deg,#f8f9fa 0%,#e9ecef 100%)}
+    </style>
+</head>
+<body class="bg-[#F2F2F2]">
+    <div id="messageContainer" class="fixed top-20 right-4 z-50 w-80"></div>
+    <div id="loadingModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[100] flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg flex items-center space-x-4 shadow-xl"><i class="fas fa-spinner fa-spin text-2xl text-[#B6B09F]"></i><span id="loadingText" class="text-slate-700">Processing...</span></div>
+    </div>
+    
+    <div id="demoModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-[90] flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-8 relative modal-content">
+            <button onclick="toggleModal('demoModal', false)" class="absolute top-4 right-4 text-slate-500 hover:text-slate-800"><i class="fas fa-times text-2xl"></i></button>
+            <h2 class="text-3xl font-bold text-center mb-8 text-[#000000]">How It Works in 4 Simple Steps</h2>
+            <div class="grid md:grid-cols-4 gap-6 text-center">
+                <div class="flex flex-col items-center"><div class="w-20 h-20 bg-[#EAE4D5] text-[#B6B09F] rounded-full flex items-center justify-center text-3xl mb-4"><i class="fas fa-link"></i></div><h3 class="font-bold text-lg mb-2">1. Copy URL</h3><p class="text-slate-600 text-sm">Find a product and copy its URL.</p></div>
+                <div class="flex flex-col items-center"><div class="w-20 h-20 bg-[#EAE4D5] text-[#B6B09F] rounded-full flex items-center justify-center text-3xl mb-4"><i class="fas fa-paste"></i></div><h3 class="font-bold text-lg mb-2">2. Paste & Set</h3><p class="text-slate-600 text-sm">Paste the URL, add your email, and set a price goal.</p></div>
+                <div class="flex flex-col items-center"><div class="w-20 h-20 bg-[#EAE4D5] text-[#B6B09F] rounded-full flex items-center justify-center text-3xl mb-4"><i class="fas fa-bell"></i></div><h3 class="font-bold text-lg mb-2">3. Get Alerted</h3><p class="text-slate-600 text-sm">We'll monitor the price 24/7 and email you.</p></div>
+                <div class="flex flex-col items-center"><div class="w-20 h-20 bg-[#EAE4D5] text-[#B6B09F] rounded-full flex items-center justify-center text-3xl mb-4"><i class="fas fa-rupee-sign"></i></div><h3 class="font-bold text-lg mb-2">4. Save Money</h3><p class="text-slate-600 text-sm">Buy at the best price and enjoy your savings!</p></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="insightsModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-[90] flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl p-8 relative modal-content max-h-[90vh] overflow-y-auto">
+            <button onclick="toggleModal('insightsModal', false)" class="absolute top-4 right-4 text-slate-500 hover:text-slate-800"><i class="fas fa-times text-2xl"></i></button>
+            <h2 class="text-3xl font-bold text-center mb-8 text-[#000000]">AI Product Insights</h2>
+            <div id="insightsContent" class="space-y-6"></div>
+        </div>
+    </div>
+
+    <div id="forecastModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-[90] flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 relative modal-content">
+            <button onclick="toggleModal('forecastModal', false)" class="absolute top-4 right-4 text-slate-500 hover:text-slate-800"><i class="fas fa-times text-2xl"></i></button>
+            <h2 class="text-3xl font-bold text-center mb-6 text-[#000000]">AI Price Forecast 🔮</h2>
+            <div id="forecastContent" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <div id="detailsModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-[90] flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-8 relative modal-content max-h-[90vh] overflow-y-auto">
+            <button onclick="toggleModal('detailsModal', false)" class="absolute top-4 right-4 text-slate-500 hover:text-slate-800"><i class="fas fa-times text-2xl"></i></button>
+            <h2 class="text-3xl font-bold text-center mb-8 text-[#000000]">AI-Powered Product Details</h2>
+            <div id="detailsContent" class="space-y-6"></div>
+        </div>
+    </div>
+
+    <div id="editModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-[90] flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 relative modal-content">
+            <button onclick="toggleModal('editModal', false)" class="absolute top-4 right-4 text-slate-500 hover:text-slate-800"><i class="fas fa-times text-2xl"></i></button>
+            <h2 class="text-3xl font-bold text-center mb-8 text-[#000000]">Edit Alert Settings</h2>
+            <form id="editForm">
+                <input type="hidden" id="editProductId">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-[#000000] mb-2">Product</label>
+                        <p id="editProductTitle" class="text-slate-600 bg-slate-100 p-3 rounded-lg truncate"></p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="editAlertType" class="block text-sm font-semibold text-[#000000] mb-2">Alert Type</label>
+                            <select id="editAlertType" class="w-full px-4 py-3 border border-[#B6B09F] rounded-lg bg-white">
+                                <option value="percentage">Percentage Drop (%)</option>
+                                <option value="fixed">Fixed Price (₹)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="editTargetValue" class="block text-sm font-semibold text-[#000000] mb-2">Target Value</label>
+                            <input type="number" id="editTargetValue" required min="1" step="1" class="w-full px-4 py-3 border border-[#B6B09F] rounded-lg" placeholder="10" />
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-[#B6B09F] hover:bg-opacity-80 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center">
+                        <i class="fas fa-save mr-2"></i>Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <nav class="fixed top-0 w-full z-40 bg-white/95 backdrop-blur-sm border-b border-[#EAE4D5]">
+        <div class="max-w-6xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3"><div class="w-9 h-9 bg-[#B6B09F] rounded-lg flex items-center justify-center"><i class="fas fa-tags text-white text-base"></i></div><span class="text-xl font-bold text-[#000000]">Droplify</span></div>
+                <div class="flex items-center space-x-4">
+                    <span id="liveCount" class="text-sm text-[#000000] hidden md:block">0 Products Tracked</span>
+                    <button onclick="toggleModal('demoModal', true)" class="bg-[#000000] hover:bg-opacity-80 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">How it Works</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <section class="gradient-bg text-white pt-24 pb-20">
+        <div class="max-w-6xl mx-auto px-4 py-16">
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <div>
+                    <div class="inline-flex items-center bg-white/20 rounded-full px-3 py-1 mb-6 text-sm"><span class="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>Live Price Tracking</div>
+                    <h1 class="text-4xl lg:text-6xl font-bold mb-6 text-[#000000]">Never Miss a <span class="text-[#F2F2F2]">Price Drop</span> Again</h1>
+                    <p class="text-xl text-[#000000]/90 mb-8">Track product prices from your favorite online stores and get notified instantly. Save money effortlessly with AI-powered insights.</p>
+                    <button onclick="scrollTo('tracker')" class="bg-white text-[#B6B09F] font-semibold px-6 py-3 rounded-lg hover:bg-slate-100 transition-colors">Start Tracking Now</button>
+                </div>
+                <div class="flex justify-center">
+                    <div id="greatestDealCard" class="bg-white/10 rounded-2xl p-6 hover-lift w-full max-w-sm">
+                        <div class="bg-white rounded-xl p-6 text-center shadow-lg">
+                            <div class="w-12 h-12 bg-[#EAE4D5] text-[#B6B09F] rounded-xl mx-auto mb-4 flex items-center justify-center"><i id="dealIcon" class="fas fa-bell text-2xl"></i></div>
+                            <h3 id="dealTitle" class="font-bold text-[#000000] text-lg mb-2">Price Alert!</h3>
+                            <p id="dealDescription" class="text-[#000000] text-sm mb-4">No deals found yet. Track a product!</p>
+                            <div id="dealSavings" class="bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold">Track to Save!</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="tracker" class="py-20 bg-white">
+        <div class="max-w-4xl mx-auto px-4">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-[#000000] mb-3">Track Your First Product</h2>
+                <p class="text-[#000000] max-w-xl mx-auto">Simply paste a product URL from Amazon, Flipkart, Myntra, etc., provide your email, and set your alert.</p>
+            </div>
+            <div class="bg-white rounded-2xl shadow-xl border border-[#EAE4D5] p-8">
+                <form id="trackingForm" class="space-y-6">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div><label class="block text-sm font-semibold text-[#000000] mb-2">Product URL</label><input type="url" id="productUrl" required class="w-full px-4 py-3 border border-[#B6B09F] rounded-lg" placeholder="https://www.amazon.in/product-link" /></div>
+                        <div><label class="block text-sm font-semibold text-[#000000] mb-2">Email Address</label><input type="email" id="userEmail" required class="w-full px-4 py-3 border border-[#B6B09F] rounded-lg" placeholder="your.email@example.com" /></div>
+                    </div>
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <div><label class="block text-sm font-semibold text-[#000000] mb-2">Alert Type</label><select id="alertType" class="w-full px-4 py-3 border border-[#B6B09F] rounded-lg bg-white"><option value="percentage">Percentage Drop (%)</option><option value="fixed">Fixed Price (₹)</option></select></div>
+                        <div><label class="block text-sm font-semibold text-[#000000] mb-2">Target Value</label><input type="number" id="targetValue" required min="1" step="1" class="w-full px-4 py-3 border border-[#B6B09F] rounded-lg" placeholder="10" /></div>
+                        <div class="flex items-end"><button type="submit" id="submitBtn" class="w-full bg-[#B6B09F] hover:bg-opacity-80 text-white font-semibold py-3 rounded-lg flex items-center justify-center"><i class="fas fa-plus mr-2"></i><span>Start Tracking</span></button></div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-20 bg-[#F2F2F2]">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="grid md:grid-cols-3 gap-6 mb-12">
+                <div class="bg-white rounded-xl p-6 text-center hover-lift shadow-sm border border-[#EAE4D5]"><div class="w-12 h-12 bg-[#EAE4D5] text-[#B6B09F] rounded-xl mx-auto mb-3 flex items-center justify-center"><i class="fas fa-shopping-cart"></i></div><h3 class="text-3xl font-bold text-[#000000]" id="totalProducts">0</h3><p class="text-[#000000]">Products Tracked</p></div>
+                <div class="bg-white rounded-xl p-6 text-center hover-lift shadow-sm border border-[#EAE4D5]"><div class="w-12 h-12 bg-[#EAE4D5] text-[#B6B09F] rounded-xl mx-auto mb-3 flex items-center justify-center"><i class="fas fa-bell"></i></div><h3 class="text-3xl font-bold text-[#000000]" id="activeAlerts">0</h3><p class="text-[#000000]">Alerts Sent</p></div>
+                <div class="bg-white rounded-xl p-6 text-center hover-lift shadow-sm border border-[#EAE4D5]"><div class="w-12 h-12 bg-[#EAE4D5] text-[#B6B09F] rounded-xl mx-auto mb-3 flex items-center justify-center"><i class="fas fa-rupee-sign"></i></div><h3 class="text-3xl font-bold text-[#000000]" id="totalSaved">₹0</h3><p class="text-[#000000]">Total Money Saved</p></div>
+            </div>
+            <div class="bg-white rounded-xl shadow-xl p-6 border border-[#EAE4D5]">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-[#000000]">Your Tracked Products</h3>
+                    <div class="flex gap-3">
+                        <button onclick="checkAllPrices()" id="checkBtn" class="bg-[#B6B09F] hover:bg-opacity-80 text-white px-4 py-2 rounded-lg text-sm font-semibold"><i class="fas fa-sync-alt mr-1"></i>Check Prices</button>
+                        <button onclick="exportData()" class="bg-[#000000] hover:bg-opacity-80 text-white px-4 py-2 rounded-lg text-sm font-semibold"><i class="fas fa-download mr-1"></i>Export</button>
+                    </div>
+                </div>
+                <div id="productsList" class="space-y-4">
+                    <div id="noProductsPlaceholder" class="text-center py-12 text-[#000000]"><div class="w-16 h-16 bg-[#F2F2F2] rounded-full mx-auto mb-4 flex items-center justify-center"><i class="fas fa-shopping-cart text-2xl text-[#B6B09F]"></i></div><h3 class="text-lg font-semibold text-[#000000] mb-2">No products tracked yet</h3><p class="text-[#000000]">Add your first product above to start saving!</p></div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <footer class="bg-[#000000] text-white py-10">
+        <div class="max-w-6xl mx-auto px-4 text-center">
+            <div class="flex items-center justify-center space-x-3 mb-4"><div class="w-9 h-9 bg-[#B6B09F] rounded-lg flex items-center justify-center"><i class="fas fa-tags text-white text-base"></i></div><span class="text-xl font-bold">Droplify</span></div>
+            <p class="text-slate-400">Never miss a price drop again. Save money effortlessly with AI-powered insights.</p>
+        </div>
+    </footer>
+
+    <script>
+        const API_BASE_URL = "";
+        let chartInstances = {};
+        let tracked_products = [];
+
+        // --- Core UI Functions ---
+        const showMessage = (message, type = "success") => {
+            const container = document.getElementById("messageContainer");
+            const bgColor = type === "success" ? "bg-[#B6B09F] text-white" : "bg-red-500 text-white";
+            const div = document.createElement("div");
+            div.className = `mb-4 p-4 rounded-lg shadow-lg fade-in ${bgColor}`;
+            div.innerHTML = `<div class="flex justify-between items-center"><span class="font-medium">${message}</span><button onclick="this.parentElement.parentElement.remove()" class="ml-4">&times;</button></div>`;
+            container.appendChild(div);
+            setTimeout(() => div.remove(), 5000);
+        };
+        const showLoading = (show = true, text = "Processing...") => {
+            document.getElementById("loadingText").textContent = text;
+            document.getElementById("loadingModal").classList.toggle("hidden", !show);
+        };
+        const scrollTo = (elementId) => document.getElementById(elementId).scrollIntoView({ behavior: "smooth", block: "start" });
+        const toggleModal = (modalId, show) => document.getElementById(modalId).classList.toggle("hidden", !show);
+
+        // --- API Helper ---
+        const fetchApi = async (endpoint, options = {}) => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api${endpoint}`, options);
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || `HTTP error! Status: ${response.status}`);
+                return data;
+            } catch (error) {
+                console.error("API Error:", error);
+                showMessage(error.message, "error");
+                throw error;
+            }
+        };
+        
+        // --- Rendering Logic ---
+        const renderProducts = (products) => {
+            const container = document.getElementById("productsList");
+            const placeholder = document.getElementById("noProductsPlaceholder");
+            container.innerHTML = "";
+            
+            if (!products || products.length === 0) {
+                placeholder.style.display = "block";
+                container.appendChild(placeholder);
+                return;
+            }
+            
+            placeholder.style.display = "none";
+            products.forEach(product => {
+                const analytics = product.analytics || {};
+                const priceChange = analytics.price_change_percentage || 0;
+                const changeColor = priceChange < 0 ? "text-green-600" : (priceChange > 0 ? "text-red-600" : "text-slate-600");
+
+                const productCard = `
+                <div class="border border-[#EAE4D5] rounded-xl p-4 md:p-6 fade-in hover:shadow-lg transition-shadow bg-white">
+                    <div class="flex flex-col md:flex-row items-start gap-5">
+                        <img src="${product.image_url || "https://via.placeholder.com/100?text=No+Image"}" alt="Product" class="w-24 h-24 object-contain rounded-lg border border-[#EAE4D5]">
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-800 mb-1">${product.title}</h3>
+                            <p class="text-sm text-gray-500 mb-2">${product.brand || "N/A"} • ${product.website || "Unknown"}</p>
+                            <div class="flex items-center gap-2 mb-4">
+                                <span class="bg-${product.threshold_type === 'percentage' ? 'blue' : 'green'}-100 text-${product.threshold_type === 'percentage' ? 'blue' : 'green'}-800 px-2 py-1 rounded-full text-xs font-semibold">
+                                    Alert: ${product.threshold_type === 'percentage' ? product.threshold + "% Drop" : "At ₹" + product.threshold.toLocaleString('en-IN')}
+                                </span>
+                                <span class="text-xs text-gray-500">${product.alerts_sent} alerts sent</span>
+                            </div>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-center border-t border-b border-gray-200 py-3 my-3">
+                                <div><div class="font-medium text-slate-500 text-xs">Current</div><div class="font-bold text-lg">₹${product.current_price.toLocaleString("en-IN")}</div></div>
+                                <div><div class="font-medium text-slate-500 text-xs">Lowest</div><div class="font-bold text-lg text-green-600">₹${(analytics.lowest_price || product.current_price).toLocaleString("en-IN")}</div></div>
+                                <div><div class="font-medium text-slate-500 text-xs">Highest</div><div class="font-bold text-lg text-red-600">₹${(analytics.highest_price || product.current_price).toLocaleString("en-IN")}</div></div>
+                                <div><div class="font-medium text-slate-500 text-xs">Change</div><div class="font-bold text-lg ${changeColor}">${priceChange.toFixed(1)}%</div></div>
+                            </div>
+                            <div class="flex flex-wrap gap-2 mt-4">
+                                <button onclick="showDetails('${product.id}')" class="bg-gray-700 hover:bg-gray-800 text-white px-3 py-1 rounded-lg text-sm"><i class="fas fa-info-circle mr-1"></i>Details</button>
+                                <button onclick="showInsights('${product.id}')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm"><i class="fas fa-brain mr-1"></i>AI Insights</button>
+                                <button onclick="showForecast('${product.id}')" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded-lg text-sm"><i class="fas fa-crystal-ball mr-1"></i>Predict</button>
+                                <button onclick="createChart('${product.id}')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-lg text-sm"><i class="fas fa-chart-line mr-1"></i>Chart</button>
+                                <button onclick="showEditModal('${product.id}')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-lg text-sm"><i class="fas fa-edit mr-1"></i>Edit</button>
+                                <button onclick="removeProduct('${product.id}')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-sm"><i class="fas fa-trash mr-1"></i>Remove</button>
+                                <a href="${product.url}" target="_blank" class="bg-[#B6B09F] hover:bg-opacity-80 text-white px-3 py-1 rounded-lg text-sm"><i class="fas fa-external-link-alt mr-1"></i>View</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="chart-${product.id}" class="mt-4 hidden"><canvas id="priceChart-${product.id}" width="400" height="150"></canvas></div>
+                </div>`;
+                const div = document.createElement("div");
+                div.innerHTML = productCard;
+                container.appendChild(div);
+            });
+        };
+
+        const updateDashboardStats = (products) => {
+            const totalAlerts = products.reduce((sum, p) => sum + (p.alerts_sent || 0), 0);
+            const totalSavings = products.reduce((sum, p) => {
+                const saving = p.original_price > p.current_price ? p.original_price - p.current_price : 0;
+                return sum + saving;
+            }, 0);
+
+            document.getElementById("totalProducts").textContent = products.length || 0;
+            document.getElementById("activeAlerts").textContent = totalAlerts;
+            document.getElementById("totalSaved").textContent = `₹${totalSavings.toLocaleString("en-IN", {maximumFractionDigits: 0})}`;
+            document.getElementById("liveCount").textContent = `${products.length || 0} Products Tracked`;
+        };
+
+        const updateGreatestDealCard = (deal) => {
+            const card = { icon: document.getElementById("dealIcon"), title: document.getElementById("dealTitle"), desc: document.getElementById("dealDescription"), savings: document.getElementById("dealSavings"), container: document.getElementById("greatestDealCard") };
+            if (deal) {
+                card.icon.className = "fas fa-fire text-2xl text-red-500"; card.title.textContent = "Greatest Deal Found!"; card.desc.textContent = `${deal.title.substring(0, 50)}...`; card.savings.textContent = `Save ₹${deal.savings.toLocaleString("en-IN")} (${deal.drop_percentage}% off)`; card.savings.className = "bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold"; card.container.onclick = () => window.open(deal.url, "_blank"); card.container.style.cursor = "pointer";
+            } else {
+                card.icon.className = "fas fa-bell text-2xl"; card.title.textContent = "Price Alert!"; card.desc.textContent = "No deals found yet. Track a product!"; card.savings.textContent = "Track to Save!"; card.savings.className = "bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-semibold"; card.container.onclick = null; card.container.style.cursor = "default";
+            }
+        };
+        
+        // --- App Lifecycle ---
+        const loadApp = async () => {
+            try {
+                const data = await fetchApi("/products");
+                tracked_products = data.products || [];
+                renderProducts(tracked_products);
+                updateDashboardStats(tracked_products);
+
+                const dealData = await fetchApi("/greatest_deal").catch(() => ({ deal: null }));
+                updateGreatestDealCard(dealData.deal);
+            } catch (err) {
+                console.error("Failed to load application data:", err);
+            }
+        };
+
+        // --- Event Handlers & Actions ---
+        document.getElementById("trackingForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const formData = {
+                url: document.getElementById("productUrl").value,
+                email: document.getElementById("userEmail").value,
+                threshold_type: document.getElementById("alertType").value,
+                targetValue: document.getElementById("targetValue").value
+            };
+            const btn = document.getElementById("submitBtn");
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+            btn.disabled = true;
+
+            try {
+                await fetchApi("/add_product", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(formData) });
+                showMessage("Product added successfully! We'll start tracking it now.");
+                e.target.reset();
+                await loadApp(); // Refresh the list
+            } catch (error) {
+                /* showMessage is handled by fetchApi */
+            } finally {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }
+        });
+
+        const removeProduct = async (productId) => {
+            if (!confirm("Are you sure you want to remove this product?")) return;
+            try {
+                await fetchApi(`/remove_product/${productId}`, { method: "DELETE" });
+                showMessage("Product removed successfully");
+                await loadApp();
+            } catch (error) { /* Handled by fetchApi */ }
+        };
+
+        const checkAllPrices = async () => {
+            const btn = document.getElementById("checkBtn");
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Checking...';
+            btn.disabled = true;
+            try {
+                const response = await fetchApi("/check_prices", { method: "POST" });
+                showMessage(response.message || "Price check initiated!");
+                setTimeout(loadApp, 5000); // Give backend time to process before refreshing
+            } catch (error) { /* Handled by fetchApi */ 
+            } finally {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }
+        };
+
+        const exportData = async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/export_data`);
+                if (!response.ok) throw new Error("Export failed");
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url; a.download = `droplify_export_${new Date().toISOString().split("T")[0]}.json`;
+                document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(url);
+                showMessage("Data exported successfully!");
+            } catch (error) { showMessage(`Export failed: ${error.message}`, "error"); }
+        };
+
+        // --- Modal Content Loaders ---
+        const showDetails = async (productId) => {
+            toggleModal('detailsModal', true);
+            const content = document.getElementById("detailsContent");
+            content.innerHTML = `<div class="text-center"><i class="fas fa-spinner fa-spin text-4xl text-[#B6B09F]"></i><p class="mt-4 text-slate-600">Fetching AI Details...</p></div>`;
+            try {
+                const response = await fetchApi(`/product/${productId}/details`);
+                const { details } = response;
+                content.innerHTML = `
+                    <div class="insight-card p-6 rounded-xl"><h3 class="text-xl font-semibold mb-3"><i class="fas fa-file-alt text-blue-500 mr-2"></i>Summary</h3><p class="text-slate-600">${details.summary}</p></div>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="insight-card p-6 rounded-xl"><h3 class="text-xl font-semibold mb-3"><i class="fas fa-star text-yellow-500 mr-2"></i>Key Features</h3><ul class="list-disc list-inside text-slate-600 space-y-1">${details.features.map(f => `<li>${f}</li>`).join('')}</ul></div>
+                        <div class="insight-card p-6 rounded-xl"><h3 class="text-xl font-semibold mb-3"><i class="fas fa-cogs text-gray-500 mr-2"></i>Specifications</h3><div class="space-y-2">${Object.entries(details.specifications).map(([k, v]) => `<div class="flex justify-between text-sm"><span class="font-medium text-slate-500">${k}</span><span class="text-slate-800 font-semibold">${v}</span></div>`).join('')}</div></div>
+                    </div>`;
+            } catch (error) {
+                content.innerHTML = `<div class="text-center text-red-600 bg-red-50 p-6 rounded-lg"><h3 class="font-semibold">Failed to load details</h3><p>${error.message}</p></div>`;
+            }
+        };
+
+        const showInsights = async (productId) => {
+            toggleModal('insightsModal', true);
+            const content = document.getElementById("insightsContent");
+            content.innerHTML = `<div class="text-center"><i class="fas fa-spinner fa-spin text-4xl text-[#B6B09F]"></i><p class="mt-4 text-slate-600">Consulting AI Oracle...</p></div>`;
+            try {
+                const { analysis } = await fetchApi(`/product/${productId}/insights`);
+                const decisionMap = { 'BUY NOW': ['green-600', 'border-green-500', 'fa-check-circle'], 'WAIT': ['orange-500', 'border-orange-400', 'fa-clock'], 'CONSIDER': ['blue-500', 'border-blue-400', 'fa-info-circle'] };
+                const [color, border, icon] = decisionMap[analysis.recommendation.decision.toUpperCase()] || ['slate-700', 'border-slate-400', 'fa-question-circle'];
+
+                content.innerHTML = `<div class="space-y-6">
+                    <div class="insight-card border-l-4 ${border} p-6 rounded-xl shadow-sm"><h3 class="text-2xl font-bold mb-3 ${color}"><i class="fas ${icon} mr-3"></i>AI Verdict: ${analysis.recommendation.decision}</h3><p class="text-slate-700 text-lg">${analysis.recommendation.reason}</p></div>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="insight-card p-6 rounded-xl"><h3 class="text-xl font-semibold text-[#000000] mb-3"><i class="fas fa-file-alt text-blue-500 mr-2"></i>Overview</h3><p class="text-slate-600">${analysis.description}</p></div>
+                        <div class="insight-card p-6 rounded-xl"><h3 class="text-xl font-semibold text-[#000000] mb-3"><i class="fas fa-search-dollar text-yellow-500 mr-2"></i>Price Analysis</h3><p class="text-slate-600">${analysis.price_analysis}</p></div>
+                    </div>
+                    <div class="insight-card p-6 rounded-xl"><h3 class="text-xl font-semibold text-[#000000] mb-3"><i class="fas fa-lightbulb text-purple-500 mr-2"></i>Smart Buying Tip</h3><p class="text-slate-600">${analysis.buying_tip}</p></div>
+                </div>`;
+            } catch (error) {
+                content.innerHTML = `<div class="text-center text-red-600 bg-red-50 p-6 rounded-lg"><i class="fas fa-exclamation-triangle text-3xl mb-3"></i><h3 class="font-semibold">Analysis Failed</h3><p>${error.message}</p></div>`;
+            }
+        };
+
+        const showForecast = async (productId) => {
+            toggleModal('forecastModal', true);
+            const content = document.getElementById("forecastContent");
+            content.innerHTML = `<div class="text-center"><i class="fas fa-spinner fa-spin text-4xl text-[#B6B09F]"></i><p class="mt-4 text-slate-600">Calculating future trends...</p></div>`;
+            try {
+                const data = await fetchApi(`/product/${productId}/temporal_forecast`);
+                const { forecast, product_title, current_price } = data;
+                const confidenceColorMap = { 'High': 'text-green-600', 'Medium': 'text-yellow-600', 'Low': 'text-red-600' };
+                content.innerHTML = `
+                    <p class="text-center text-slate-700 italic">AI forecast for:</p>
+                    <h3 class="text-xl font-semibold text-center text-[#B6B09F] truncate">${product_title}</h3>
+                    <div class="mt-4 p-4 rounded-lg insight-card"><p class="text-lg font-bold text-center text-purple-700">“${forecast.forecast_summary}”</p></div>
+                    <div class="mt-4 text-center"><span class="font-semibold">Confidence:</span> <span class="font-bold ${confidenceColorMap[forecast.confidence] || 'text-slate-600'}">${forecast.confidence}</span></div>
+                    <div class="mt-4 grid grid-cols-2 gap-4 text-center">
+                        <div class="bg-slate-100 p-4 rounded-lg"><div class="text-sm text-slate-500">Current Price</div><div class="text-2xl font-bold">₹${current_price.toLocaleString("en-IN")}</div></div>
+                        <div class="bg-purple-100 p-4 rounded-lg"><div class="text-sm text-purple-600">Predicted Range</div><div class="text-xl font-bold">₹${forecast.predicted_range.low.toLocaleString("en-IN")} - ₹${forecast.predicted_range.high.toLocaleString("en-IN")}</div></div>
+                    </div>
+                    <div class="mt-4 text-sm bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-3 rounded-r-lg"><strong>Reasoning:</strong> ${forecast.reasoning}</div>`;
+            } catch (error) {
+                content.innerHTML = `<div class="text-center p-4 bg-red-50 border-l-4 border-red-500 rounded-lg"><i class="fas fa-exclamation-triangle text-3xl text-red-500 mb-3"></i><h3 class="text-lg font-semibold text-red-800">Forecast Error</h3><p class="text-red-700 mt-1">${error.message}</p></div>`;
+            }
+        };
+        
+        // --- Edit Logic ---
+        const showEditModal = (productId) => {
+            const product = tracked_products.find(p => p.id === productId);
+            if (!product) {
+                showMessage("Could not find product to edit.", "error");
+                return;
+            }
+            document.getElementById('editProductId').value = productId;
+            document.getElementById('editProductTitle').textContent = product.title;
+            document.getElementById('editAlertType').value = product.threshold_type;
+            document.getElementById('editTargetValue').value = product.threshold;
+            toggleModal('editModal', true);
+        };
+
+        document.getElementById('editForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const productId = document.getElementById('editProductId').value;
+            const formData = {
+                threshold_type: document.getElementById('editAlertType').value,
+                targetValue: document.getElementById('editTargetValue').value
+            };
+            try {
+                await fetchApi(`/product/${productId}/edit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                showMessage('Product updated successfully!');
+                toggleModal('editModal', false);
+                await loadApp();
+            } catch (error) { /* Handled by fetchApi */ }
+        });
+
+        const createChart = (productId) => {
+            const product = tracked_products.find(p => p.id === productId); if (!product) return;
+            const chartContainer = document.getElementById(`chart-${productId}`);
+            const isHidden = chartContainer.classList.contains("hidden");
+            chartContainer.classList.toggle("hidden", !isHidden);
+            if (isHidden) {
+                if (chartInstances[productId]) chartInstances[productId].destroy();
+                const ctx = document.getElementById(`priceChart-${productId}`).getContext("2d");
+                chartInstances[productId] = new Chart(ctx, { type: "line", data: { labels: product.timestamp_history.map(ts => new Date(ts).toLocaleDateString()), datasets: [{ label: "Price (₹)", data: product.price_history, borderColor: "#B6B09F", backgroundColor: "rgba(182, 176, 159, 0.1)", tension: 0.1, fill: true }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false, ticks: { callback: value => "₹" + value.toLocaleString("en-IN") } } } } });
+            }
+        };
+
+        // --- Initial Load & Interval Refresh ---
+        document.addEventListener("DOMContentLoaded", () => {
+            showLoading(true, "Loading your products...");
+            loadApp().finally(() => showLoading(false));
+        });
+        setInterval(loadApp, 300000); // Refresh data every 5 minutes
+    </script>
+</body>
+</html>
